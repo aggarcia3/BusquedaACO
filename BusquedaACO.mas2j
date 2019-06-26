@@ -1,0 +1,74 @@
+MAS busquedaACO {
+	// En principio, el SMA soporta cualquier arquitectura presente en Jason, pues está diseñado
+	// de forma que soporte cualquier intercalación posible de instrucciones de hilos de ejecución
+	// (es decir, sea seguro con varios hilos de ejecución)
+	infrastructure: Centralised
+
+    environment: esei.si.alejandrogg.busquedaACO.Mundo
+	(
+		// El grafo de carreteras a emplear, que define las localidades y sus
+		// interconexiones mediante carreteras. Valores posibles: "Rumanía".
+		// Nota: es posible que, dependiendo del juego de caracteres en uso por
+		// el sistema, la tilde no se interprete correctamente y el SMA dé error
+		// al ejecutarse. De ser así, una manera de corregirlo es cambiar la codificación
+		// predeterminada usada por Java a UTF-8, añadiendo la variable de entorno
+		// "JAVA_TOOL_OPTIONS" con el valor "-Dfile.encoding=UTF-8", y reiniciando jEdit
+		"Rumanía",
+		// La localidad de inicio del grafo de carreteras especificado anteriormente,
+		// desde donde las hormigas intentarán encontrar una ruta corta al destino
+		"Bucarest",
+		// La localidad de destino del grafo de carreteras especificado anteriormente
+		"Timisoara",
+		// Los ciclos máximos de simulación a ejecutar. Se considera que ha terminado
+		// un ciclo cuando todas las hormigas han encontrado una solución candidata
+		// o no pueden seguir avanzando
+		25,
+		// El coeficiente de retención de feromona a emplear. Controla la cantidad de
+		// feromona que se mantiene respecto de una actualización anterior. Para más
+		// información acerca de cómo influye este valor en los cálculos, véase la
+		// implementación y/o documentación del algoritmo empleado
+		0.15,
+		// Exponente que controla la importancia relativa de las feromonas para escoger
+		// rutas (alfa)
+		0.9,
+		// Exponente que controla la importancia relativa de las distancias para escoger
+		// rutas (beta)
+		1,
+		// Una constante positiva lo más pequeña posible, que indica la magnitud de feromona a sumar
+		// en cada carretera por cada hormiga. Su valor debe ajustarse teniendo en cuenta la longitud
+		// máxima estimada de un camino solución, el coeficiente de retención, el valor subjetivo de
+		// importancia de feromona, el número de hormigas y el creciente error de precisión en el que incurre
+		// la representación de coma flotante IEEE 754 de 64 bits según las magnitudes de feromona se alejan
+		// del cero
+		1000,
+		// El algoritmo a usar por el SMA. Dictamina cómo y cuándo se actualiza
+		// la feromona depositada por las hormigas en las carreteras.
+		// Algoritmos disponibles:
+		// - Dorigo et al. (1996), ant-cycle
+		// - Búsqueda voraz estocástica
+		"Dorigo et al. (1996), ant-cycle",
+		// La cantidad de segundos que el entorno esperará a que aparezcan los agentes hormigas
+		// en el SMA antes de empezar, contados a partir de la última hormiga que apareció,
+		// o bien desde el inicio de la espera de no aparecer una
+		5,
+		// La cantidad de milisegundos que deben de pasar entre dos instantes de tiempo consecutivos.
+		// Si es 0, no se esperará antes de avanzar al siguiente instante de tiempo, ejecuando la simulación
+		// del SMA a la máxima velocidad que permita el sistema
+		5000,
+		// La cantidad de segundos máxima a esperar a que todas las hormigas ejecuten su respuesta
+		// a la percepción de avance de tiempo. Si es igual a 0, se esperará indefinidamente,
+		// todo el tiempo que haga falta. Cabe destacar que se deja de esperar automáticamente por
+		// hormigas que se eliminen del SMA mientras tanto, al igual que se espera automáticamente por
+		// hormigas que se incorporen al SMA. Para garantizar que el sistema no se bloquee incluso aunque
+		// una hormiga no coopere a tiempo, o se manifiesten defectos de programación, se recomienda
+		// no establecer a 0 este valor
+		90
+	)
+
+	agents:
+		hormiga
+		[verbose=1] // Incrementar para obtener mensajes más verbosos acerca del funcionamiento interno del agente
+		agentClass esei.si.alejandrogg.busquedaACO.agentes.Hormiga
+		agentArchClass esei.si.alejandrogg.busquedaACO.agentes.ArquitecturaHormiga
+		# 25; // Cambiar el número de hormigas según se desee
+}

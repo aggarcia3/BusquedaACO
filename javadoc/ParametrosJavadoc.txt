@@ -1,0 +1,19 @@
+-subpackages esei.si.alejandrogg.busquedaACO
+-locale es_ES
+-encoding UTF-8
+-charset UTF-8
+-d html
+-use
+-author
+-tag implNote.:ptcm:"Nota de implementación:"
+-windowtitle "SMA ACO"
+-doctitle "SMA ACO"
+-header "SMA ACO"
+-footer "SMA ACO"
+-nodeprecatedlist
+-private
+-linksource
+-sourcetab 4
+-notimestamp
+-link https://docs.oracle.com/en/java/javase/11/docs/api
+-link http://jason.sourceforge.net/api
