@@ -1,0 +1,537 @@
+<!DOCTYPE HTML>
+<html lang="es">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<main role="main">
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a id="line.1">// Entorno para el proyecto BusquedaACO.mas2j</a>
+<span class="sourceLineNo">002</span><a id="line.2"></a>
+<span class="sourceLineNo">003</span><a id="line.3">package esei.si.alejandrogg.busquedaACO;</a>
+<span class="sourceLineNo">004</span><a id="line.4"></a>
+<span class="sourceLineNo">005</span><a id="line.5">import java.util.Set;</a>
+<span class="sourceLineNo">006</span><a id="line.6">import java.util.HashSet;</a>
+<span class="sourceLineNo">007</span><a id="line.7">import java.util.logging.Level;</a>
+<span class="sourceLineNo">008</span><a id="line.8">import java.util.function.Consumer;</a>
+<span class="sourceLineNo">009</span><a id="line.9">import java.util.concurrent.TimeUnit;</a>
+<span class="sourceLineNo">010</span><a id="line.10">import java.util.concurrent.locks.Condition;</a>
+<span class="sourceLineNo">011</span><a id="line.11">import java.util.concurrent.locks.Lock;</a>
+<span class="sourceLineNo">012</span><a id="line.12">import java.util.concurrent.locks.ReentrantLock;</a>
+<span class="sourceLineNo">013</span><a id="line.13"></a>
+<span class="sourceLineNo">014</span><a id="line.14">import static java.lang.System.currentTimeMillis;</a>
+<span class="sourceLineNo">015</span><a id="line.15"></a>
+<span class="sourceLineNo">016</span><a id="line.16">/**</a>
+<span class="sourceLineNo">017</span><a id="line.17"> * Esta clase provee servicios y toma responsabilidades relacionadas con la correcta</a>
+<span class="sourceLineNo">018</span><a id="line.18"> * sincronización entre agentes de hormigas, para garantizar la corrección y consistencia</a>
+<span class="sourceLineNo">019</span><a id="line.19"> * de la simulación independientemente de la velocidad de ejecución de las acciones</a>
+<span class="sourceLineNo">020</span><a id="line.20"> * individuales de los agentes. Es una fabricación pura.</a>
+<span class="sourceLineNo">021</span><a id="line.21"> *</a>
+<span class="sourceLineNo">022</span><a id="line.22"> * CoordinadorHormigas tiene una relación relativamente estrecha con {@link Mundo}, que se refleja</a>
+<span class="sourceLineNo">023</span><a id="line.23"> * en un contrato relativamente estricto, con dos términos: esta clase no debe invocar métodos</a>
+<span class="sourceLineNo">024</span><a id="line.24"> * de {@link Mundo} sin asegurarse previamente de que se han inicializado los datos que usan.</a>
+<span class="sourceLineNo">025</span><a id="line.25"> * Destacablemente, invocar los métodos getLogger() y getNHormigas() es, por construcción de la</a>
+<span class="sourceLineNo">026</span><a id="line.26"> * clase {@link Mundo}, siempre seguro. Por otro lado, el {@link Mundo} se debe de comprometer a no propagar</a>
+<span class="sourceLineNo">027</span><a id="line.27"> * instancias de CoordinadorHormigas antes de que complete su propia inicialización, lo cual actualmente</a>
+<span class="sourceLineNo">028</span><a id="line.28"> * hace mediante una espera por una condición en su método get(). Este último término es necesario para</a>
+<span class="sourceLineNo">029</span><a id="line.29"> * garantizar el correcto funcionamiento de la espera inicial por las hormigas.</a>
+<span class="sourceLineNo">030</span><a id="line.30"> *</a>
+<span class="sourceLineNo">031</span><a id="line.31"> * @see Mundo</a>
+<span class="sourceLineNo">032</span><a id="line.32"> * @author Alejandro González García</a>
+<span class="sourceLineNo">033</span><a id="line.33"> */</a>
+<span class="sourceLineNo">034</span><a id="line.34">public final class CoordinadorHormigas {</a>
+<span class="sourceLineNo">035</span><a id="line.35">    /**</a>
+<span class="sourceLineNo">036</span><a id="line.36">     * El mundo sobre el que este coordinador presta sus servicios.</a>
+<span class="sourceLineNo">037</span><a id="line.37">     */</a>
+<span class="sourceLineNo">038</span><a id="line.38">    private final Mundo mundo;</a>
+<span class="sourceLineNo">039</span><a id="line.39">    /**</a>
+<span class="sourceLineNo">040</span><a id="line.40">     * Candado que se utiliza para sincronizar varios hilos de ejecución</a>
+<span class="sourceLineNo">041</span><a id="line.41">     * cuando se inicia la espera por hormigas.</a>
+<span class="sourceLineNo">042</span><a id="line.42">     */</a>
+<span class="sourceLineNo">043</span><a id="line.43">    private final Lock candadoInicioEspera = new ReentrantLock();</a>
+<span class="sourceLineNo">044</span><a id="line.44">    /**</a>
+<span class="sourceLineNo">045</span><a id="line.45">     * Condición de inicio de espera por hormigas del SMA.</a>
+<span class="sourceLineNo">046</span><a id="line.46">     */</a>
+<span class="sourceLineNo">047</span><a id="line.47">    private final Condition condicionInicioEspera = candadoInicioEspera.newCondition();</a>
+<span class="sourceLineNo">048</span><a id="line.48">    /**</a>
+<span class="sourceLineNo">049</span><a id="line.49">     * Candado (lock) que se utiliza para sincronizar varios hilos de ejecución</a>
+<span class="sourceLineNo">050</span><a id="line.50">     * cuando llegan hormigas.</a>
+<span class="sourceLineNo">051</span><a id="line.51">     */</a>
+<span class="sourceLineNo">052</span><a id="line.52">    private final Lock candadoLlegadaHormigas = new ReentrantLock();</a>
+<span class="sourceLineNo">053</span><a id="line.53">    /**</a>
+<span class="sourceLineNo">054</span><a id="line.54">     * Condición de llegada de hormigas al SMA.</a>
+<span class="sourceLineNo">055</span><a id="line.55">     */</a>
+<span class="sourceLineNo">056</span><a id="line.56">    private final Condition condicionLlegada = candadoLlegadaHormigas.newCondition();</a>
+<span class="sourceLineNo">057</span><a id="line.57">    /**</a>
+<span class="sourceLineNo">058</span><a id="line.58">     * El candado que utilizamos para establecer relaciones pasa-antes necesarias</a>
+<span class="sourceLineNo">059</span><a id="line.59">     * para la atomicidad y visibilidad de la llegada de las respuestas de las hormigas.</a>
+<span class="sourceLineNo">060</span><a id="line.60">     * Aunque la clase Phaser de Java provee funcionalidades similares, por simplicidad</a>
+<span class="sourceLineNo">061</span><a id="line.61">     * es deseable no tener que gestionar también la visibilidad de la referencia al Phaser</a>
+<span class="sourceLineNo">062</span><a id="line.62">     * creado, de forma que se pueda saber en todo momento cuántas hormigas quedan por</a>
+<span class="sourceLineNo">063</span><a id="line.63">     * responder, y si se está esperando por la respuesta de hormigas, con tan solo consultar</a>
+<span class="sourceLineNo">064</span><a id="line.64">     * el valor de un entero. Además, así también podríamos reducir el número de candados</a>
+<span class="sourceLineNo">065</span><a id="line.65">     * que los hilos tienen que adquirir para hacer su cometido.</a>
+<span class="sourceLineNo">066</span><a id="line.66">     */</a>
+<span class="sourceLineNo">067</span><a id="line.67">    private final Lock candadoEsperaRespuesta = new ReentrantLock();</a>
+<span class="sourceLineNo">068</span><a id="line.68">    /**</a>
+<span class="sourceLineNo">069</span><a id="line.69">     * La condición que la última hormiga en responder indicará que ha ocurrido, para notificar</a>
+<span class="sourceLineNo">070</span><a id="line.70">     * a quien espera por la respuesta de todas las hormigas de que su espera se ha completado.</a>
+<span class="sourceLineNo">071</span><a id="line.71">     */</a>
+<span class="sourceLineNo">072</span><a id="line.72">    private final Condition condicionEsperaRespuesta = candadoEsperaRespuesta.newCondition();</a>
+<span class="sourceLineNo">073</span><a id="line.73"></a>
+<span class="sourceLineNo">074</span><a id="line.74">    /**</a>
+<span class="sourceLineNo">075</span><a id="line.75">     * Tarea cuyo código se ejecutará cuando llegue una hormiga al sistema.</a>
+<span class="sourceLineNo">076</span><a id="line.76">     */</a>
+<span class="sourceLineNo">077</span><a id="line.77">    private final Consumer&lt;String&gt; tareaLlegadaHormiga;</a>
+<span class="sourceLineNo">078</span><a id="line.78">    /**</a>
+<span class="sourceLineNo">079</span><a id="line.79">     * Tarea cuyo código se ejecutará cuando una hormiga deje de formar parte del</a>
+<span class="sourceLineNo">080</span><a id="line.80">     * sistema.</a>
+<span class="sourceLineNo">081</span><a id="line.81">     */</a>
+<span class="sourceLineNo">082</span><a id="line.82">    private final Consumer&lt;String&gt; tareaMuerteHormiga;</a>
+<span class="sourceLineNo">083</span><a id="line.83">    /**</a>
+<span class="sourceLineNo">084</span><a id="line.84">     * Indica si ha llegado recientemente una hormiga al sistema que todavía</a>
+<span class="sourceLineNo">085</span><a id="line.85">     * no fue atendida por esta clase. Los accesoa a esta variable, tanto de lectura</a>
+<span class="sourceLineNo">086</span><a id="line.86">     * como de escritura, deben de sincronizarse con el monitor de {@link condicionLlegada}.</a>
+<span class="sourceLineNo">087</span><a id="line.87">     * Se usa para evitar que tengan influencia en el sistema los "spurious wakeups".</a>
+<span class="sourceLineNo">088</span><a id="line.88">     */</a>
+<span class="sourceLineNo">089</span><a id="line.89">    private boolean hormigaRecienLlegada = false;</a>
+<span class="sourceLineNo">090</span><a id="line.90">    /**</a>
+<span class="sourceLineNo">091</span><a id="line.91">     * Toma el valor verdadero si y solo si nos encontramos esperando por la llegada</a>
+<span class="sourceLineNo">092</span><a id="line.92">     * de hormigas actualmente.</a>
+<span class="sourceLineNo">093</span><a id="line.93">     */</a>
+<span class="sourceLineNo">094</span><a id="line.94">    private volatile boolean esperandoHormigas = false;</a>
+<span class="sourceLineNo">095</span><a id="line.95">    /**</a>
+<span class="sourceLineNo">096</span><a id="line.96">     * El conjunto de hormigas que enviaron una respuesta durante la espera actual por respuestas.</a>
+<span class="sourceLineNo">097</span><a id="line.97">     * Se usa para no contar más de una vez respuestas múltiples. Los accesos a este TAD deben</a>
+<span class="sourceLineNo">098</span><a id="line.98">     * de sincronizarse con el candado {@link candadoEsperaRespuesta}.</a>
+<span class="sourceLineNo">099</span><a id="line.99">     */</a>
+<span class="sourceLineNo">100</span><a id="line.100">    private final Set&lt;String&gt; hormigasQueRespondieron = new HashSet&lt;&gt;();</a>
+<span class="sourceLineNo">101</span><a id="line.101">    /**</a>
+<span class="sourceLineNo">102</span><a id="line.102">     * El número de hormigas que quedan por responder en el momento presente.</a>
+<span class="sourceLineNo">103</span><a id="line.103">     * Este número es negativo si no se está esperando a que las hormigas respondan.</a>
+<span class="sourceLineNo">104</span><a id="line.104">     * Los accesos a esta variable deben de sincronizarse con el candado {@link candadoEsperaRespuesta}.</a>
+<span class="sourceLineNo">105</span><a id="line.105">     */</a>
+<span class="sourceLineNo">106</span><a id="line.106">    private int hormigasEsperandoRespuesta = Integer.MIN_VALUE;</a>
+<span class="sourceLineNo">107</span><a id="line.107"></a>
+<span class="sourceLineNo">108</span><a id="line.108">    /**</a>
+<span class="sourceLineNo">109</span><a id="line.109">     * Crea un nuevo coordinador de hormigas, con sus tareas asociadas a ejecutar</a>
+<span class="sourceLineNo">110</span><a id="line.110">     * de modo asíncrono cuando ocurran ciertos eventos.</a>
+<span class="sourceLineNo">111</span><a id="line.111">     * @param mundo El mundo cuyas hormigas este objeto coordinará. Como contrato general, esta clase no debe</a>
+<span class="sourceLineNo">112</span><a id="line.112">     * invocar métodos en este objeto sin asegurarse previamente de que se han inicializado los datos que usan.</a>
+<span class="sourceLineNo">113</span><a id="line.113">     * Destacablemente, invocar los métodos getLogger() y getNHormigas() es, por construcción de la clase Mundo,</a>
+<span class="sourceLineNo">114</span><a id="line.114">     * siempre seguro.</a>
+<span class="sourceLineNo">115</span><a id="line.115">     * @param tareaLlegadaHormiga La tarea cuyo código se ejecutará cuando llegue una hormiga al sistema.</a>
+<span class="sourceLineNo">116</span><a id="line.116">     * @param tareaMuerteHormiga La tarea cuyo código se ejecutará cuando una hormiga deje de formar parte del SMA.</a>
+<span class="sourceLineNo">117</span><a id="line.117">     * @throws IllegalArgumentException Si algún parámetro es nulo.</a>
+<span class="sourceLineNo">118</span><a id="line.118">     */</a>
+<span class="sourceLineNo">119</span><a id="line.119">    CoordinadorHormigas(final Mundo mundo, final Consumer&lt;String&gt; tareaLlegadaHormiga, final Consumer&lt;String&gt; tareaMuerteHormiga) {</a>
+<span class="sourceLineNo">120</span><a id="line.120">        if (mundo == null) {</a>
+<span class="sourceLineNo">121</span><a id="line.121">            throw new IllegalArgumentException("El mundo asociado a un coordinador de hormigas no puede ser nulo.");</a>
+<span class="sourceLineNo">122</span><a id="line.122">        }</a>
+<span class="sourceLineNo">123</span><a id="line.123">        if (tareaLlegadaHormiga == null) {</a>
+<span class="sourceLineNo">124</span><a id="line.124">            throw new IllegalArgumentException("La tarea a realizar cuando llegue una hormiga no puede ser nula.");</a>
+<span class="sourceLineNo">125</span><a id="line.125">        }</a>
+<span class="sourceLineNo">126</span><a id="line.126">        if (tareaMuerteHormiga == null) {</a>
+<span class="sourceLineNo">127</span><a id="line.127">            throw new IllegalArgumentException("La tarea a realizar cuando una hormiga deje de formar parte del sistema no puede ser nula.");</a>
+<span class="sourceLineNo">128</span><a id="line.128">        }</a>
+<span class="sourceLineNo">129</span><a id="line.129">        this.mundo = mundo;</a>
+<span class="sourceLineNo">130</span><a id="line.130">        this.tareaLlegadaHormiga = tareaLlegadaHormiga;</a>
+<span class="sourceLineNo">131</span><a id="line.131">        this.tareaMuerteHormiga = tareaMuerteHormiga;</a>
+<span class="sourceLineNo">132</span><a id="line.132">    }</a>
+<span class="sourceLineNo">133</span><a id="line.133"></a>
+<span class="sourceLineNo">134</span><a id="line.134">    /**</a>
+<span class="sourceLineNo">135</span><a id="line.135">     * Implementa una tarea que espera a que aparezcan hormigas en el sistema, esperando</a>
+<span class="sourceLineNo">136</span><a id="line.136">     * a lo sumo un tiempo configurable desde la llegada de la última hormiga o el inicio</a>
+<span class="sourceLineNo">137</span><a id="line.137">     * de la espera.</a>
+<span class="sourceLineNo">138</span><a id="line.138">     * @author Alejandro González García</a>
+<span class="sourceLineNo">139</span><a id="line.139">     */</a>
+<span class="sourceLineNo">140</span><a id="line.140">    private class EsperadorHormigas implements Runnable {</a>
+<span class="sourceLineNo">141</span><a id="line.141">        /**</a>
+<span class="sourceLineNo">142</span><a id="line.142">         * Los milisegundos a esperar a que llegue una nueva hormiga, contados</a>
+<span class="sourceLineNo">143</span><a id="line.143">         * desde la llegada de la última hormiga o desde el inicio de la espera.</a>
+<span class="sourceLineNo">144</span><a id="line.144">         */</a>
+<span class="sourceLineNo">145</span><a id="line.145">        private final int msEspera;</a>
+<span class="sourceLineNo">146</span><a id="line.146">        /**</a>
+<span class="sourceLineNo">147</span><a id="line.147">         * La tarea cuyo método run() se ejecutará cuando se termine de realizar</a>
+<span class="sourceLineNo">148</span><a id="line.148">         * la espera.</a>
+<span class="sourceLineNo">149</span><a id="line.149">         */</a>
+<span class="sourceLineNo">150</span><a id="line.150">        private final Runnable tareaFinEspera;</a>
+<span class="sourceLineNo">151</span><a id="line.151">        /**</a>
+<span class="sourceLineNo">152</span><a id="line.152">         * Toma el valor verdadero si el método run() ha comenzado su ejecución,</a>
+<span class="sourceLineNo">153</span><a id="line.153">         * y está listo para procesar la llegada de hormigas.</a>
+<span class="sourceLineNo">154</span><a id="line.154">         */</a>
+<span class="sourceLineNo">155</span><a id="line.155">        private volatile boolean hiloIniciado = false;</a>
+<span class="sourceLineNo">156</span><a id="line.156"></a>
+<span class="sourceLineNo">157</span><a id="line.157">        /**</a>
+<span class="sourceLineNo">158</span><a id="line.158">         * Crea un nuevo esperador de hormigas, con un determinado tiempo de espera máximo.</a>
+<span class="sourceLineNo">159</span><a id="line.159">         * @param segundosEspera El devandicho tiempo de espera.</a>
+<span class="sourceLineNo">160</span><a id="line.160">         * @param tareaFinEspera La tarea a ejecutar cuando finalice la espera.</a>
+<span class="sourceLineNo">161</span><a id="line.161">         */</a>
+<span class="sourceLineNo">162</span><a id="line.162">        EsperadorHormigas(final short segundosEspera, final Runnable tareaFinEspera) {</a>
+<span class="sourceLineNo">163</span><a id="line.163">            if (segundosEspera &lt;= 0) {</a>
+<span class="sourceLineNo">164</span><a id="line.164">                throw new IllegalArgumentException("No se puede esperar una cantidad de tiempo negativa o nula a que lleguen hormigas.");</a>
+<span class="sourceLineNo">165</span><a id="line.165">            }</a>
+<span class="sourceLineNo">166</span><a id="line.166">            if (tareaFinEspera == null) {</a>
+<span class="sourceLineNo">167</span><a id="line.167">                throw new IllegalArgumentException("La tarea a ejecutar cuando se termine de esperar por la creación de hormigas no puede ser nula.");</a>
+<span class="sourceLineNo">168</span><a id="line.168">            }</a>
+<span class="sourceLineNo">169</span><a id="line.169"></a>
+<span class="sourceLineNo">170</span><a id="line.170">            this.msEspera = ((int) segundosEspera) * 1000;</a>
+<span class="sourceLineNo">171</span><a id="line.171">            this.tareaFinEspera = tareaFinEspera;</a>
+<span class="sourceLineNo">172</span><a id="line.172">        }</a>
+<span class="sourceLineNo">173</span><a id="line.173"></a>
+<span class="sourceLineNo">174</span><a id="line.174">        /**</a>
+<span class="sourceLineNo">175</span><a id="line.175">         * Devuelve verdadero si y solo si el objeto está listo para procesar</a>
+<span class="sourceLineNo">176</span><a id="line.176">         * la llegada de hormigas.</a>
+<span class="sourceLineNo">177</span><a id="line.177">         * @return El descrito valor de retorno.</a>
+<span class="sourceLineNo">178</span><a id="line.178">         */</a>
+<span class="sourceLineNo">179</span><a id="line.179">        boolean hiloIniciado() {</a>
+<span class="sourceLineNo">180</span><a id="line.180">            return hiloIniciado;</a>
+<span class="sourceLineNo">181</span><a id="line.181">        }</a>
+<span class="sourceLineNo">182</span><a id="line.182"></a>
+<span class="sourceLineNo">183</span><a id="line.183">        @Override</a>
+<span class="sourceLineNo">184</span><a id="line.184">        public void run() {</a>
+<span class="sourceLineNo">185</span><a id="line.185">            final long inicioEspera = currentTimeMillis();</a>
+<span class="sourceLineNo">186</span><a id="line.186">            final Thread hiloActual = Thread.currentThread();</a>
+<span class="sourceLineNo">187</span><a id="line.187">            boolean tiempoExpirado = false;</a>
+<span class="sourceLineNo">188</span><a id="line.188"></a>
+<span class="sourceLineNo">189</span><a id="line.189">            // Mientras no expire el tiempo desde que llegó la última hormiga, esperar</a>
+<span class="sourceLineNo">190</span><a id="line.190">            while (!tiempoExpirado) {</a>
+<span class="sourceLineNo">191</span><a id="line.191">                candadoLlegadaHormigas.lock();</a>
+<span class="sourceLineNo">192</span><a id="line.192">                try {</a>
+<span class="sourceLineNo">193</span><a id="line.193">                    final long finalEspera = currentTimeMillis() + msEspera;</a>
+<span class="sourceLineNo">194</span><a id="line.194"></a>
+<span class="sourceLineNo">195</span><a id="line.195">                    // Avisar a otros hilos de que nos hemos iniciado, y estamos listos para</a>
+<span class="sourceLineNo">196</span><a id="line.196">                    // atender la llegada de hormigas</a>
+<span class="sourceLineNo">197</span><a id="line.197">                    if (!hiloIniciado) {</a>
+<span class="sourceLineNo">198</span><a id="line.198">                        candadoInicioEspera.lock();</a>
+<span class="sourceLineNo">199</span><a id="line.199">                        try {</a>
+<span class="sourceLineNo">200</span><a id="line.200">                            condicionInicioEspera.signal();</a>
+<span class="sourceLineNo">201</span><a id="line.201">                            hiloIniciado = true;</a>
+<span class="sourceLineNo">202</span><a id="line.202">                        } finally {</a>
+<span class="sourceLineNo">203</span><a id="line.203">                            candadoInicioEspera.unlock();</a>
+<span class="sourceLineNo">204</span><a id="line.204">                        }</a>
+<span class="sourceLineNo">205</span><a id="line.205">                    }</a>
+<span class="sourceLineNo">206</span><a id="line.206"></a>
+<span class="sourceLineNo">207</span><a id="line.207">                    while (!hormigaRecienLlegada &amp;&amp; !tiempoExpirado) {</a>
+<span class="sourceLineNo">208</span><a id="line.208">                        // Esperar msEspera ms a que la llegada de una hormiga active la condición</a>
+<span class="sourceLineNo">209</span><a id="line.209">                        // de espera. Si no lo hace ninguna hormiga en ese plazo, entonces el tiempo</a>
+<span class="sourceLineNo">210</span><a id="line.210">                        // expira y dejamos de esperar</a>
+<span class="sourceLineNo">211</span><a id="line.211">                        final long msEspera = finalEspera - currentTimeMillis();</a>
+<span class="sourceLineNo">212</span><a id="line.212">                        if (msEspera &gt; 0) {</a>
+<span class="sourceLineNo">213</span><a id="line.213">                            try {</a>
+<span class="sourceLineNo">214</span><a id="line.214">                                condicionLlegada.await(msEspera, TimeUnit.MILLISECONDS);</a>
+<span class="sourceLineNo">215</span><a id="line.215">                            } catch (InterruptedException exc) {</a>
+<span class="sourceLineNo">216</span><a id="line.216">                                // Informar de que hemos recibido la petición de interrupción,</a>
+<span class="sourceLineNo">217</span><a id="line.217">                                // pero no hacerle caso</a>
+<span class="sourceLineNo">218</span><a id="line.218">                                mundo.getLogger().log(Level.INFO, "Todavía se espera por la siguiente hormiga...");</a>
+<span class="sourceLineNo">219</span><a id="line.219">                            }</a>
+<span class="sourceLineNo">220</span><a id="line.220">                        }</a>
+<span class="sourceLineNo">221</span><a id="line.221"></a>
+<span class="sourceLineNo">222</span><a id="line.222">                        // Si hemos esperado tanto que hemos llegado al momento límite, entonces es</a>
+<span class="sourceLineNo">223</span><a id="line.223">                        // que ha expirado el tiempo</a>
+<span class="sourceLineNo">224</span><a id="line.224">                        if (msEspera &lt;= 0) {</a>
+<span class="sourceLineNo">225</span><a id="line.225">                            mundo.getLogger().log(Level.INFO, "Se ha esperado por " + mundo.getNHormigas() + " hormiga/s durante " + ((currentTimeMillis() - inicioEspera) / 1000.0) + " s.");</a>
+<span class="sourceLineNo">226</span><a id="line.226">                            tiempoExpirado = true;</a>
+<span class="sourceLineNo">227</span><a id="line.227">                        }</a>
+<span class="sourceLineNo">228</span><a id="line.228">                    }</a>
+<span class="sourceLineNo">229</span><a id="line.229"></a>
+<span class="sourceLineNo">230</span><a id="line.230">                    // Si tras la espera ha llegado una hormiga, dejar de considerarla como recién llegada</a>
+<span class="sourceLineNo">231</span><a id="line.231">                    if (hormigaRecienLlegada) {</a>
+<span class="sourceLineNo">232</span><a id="line.232">                        hormigaRecienLlegada = false;</a>
+<span class="sourceLineNo">233</span><a id="line.233">                    }</a>
+<span class="sourceLineNo">234</span><a id="line.234">                } finally {</a>
+<span class="sourceLineNo">235</span><a id="line.235">                    candadoLlegadaHormigas.unlock();</a>
+<span class="sourceLineNo">236</span><a id="line.236">                }</a>
+<span class="sourceLineNo">237</span><a id="line.237">            }</a>
+<span class="sourceLineNo">238</span><a id="line.238"></a>
+<span class="sourceLineNo">239</span><a id="line.239">            // Hemos completado la espera, así que ejecutar la tarea pertinente</a>
+<span class="sourceLineNo">240</span><a id="line.240">            CoordinadorHormigas.this.esperandoHormigas = false;</a>
+<span class="sourceLineNo">241</span><a id="line.241">            tareaFinEspera.run();</a>
+<span class="sourceLineNo">242</span><a id="line.242">        }</a>
+<span class="sourceLineNo">243</span><a id="line.243">    }</a>
+<span class="sourceLineNo">244</span><a id="line.244"></a>
+<span class="sourceLineNo">245</span><a id="line.245">    /**</a>
+<span class="sourceLineNo">246</span><a id="line.246">     * Espera a que lleguen (se creen) hormigas iniciales en el SMA, deteniendo la espera si pasa un</a>
+<span class="sourceLineNo">247</span><a id="line.247">     * tiempo desde la llegada de la última hormiga, o pasa ese tiempo sin que llegue ninguna hormiga.</a>
+<span class="sourceLineNo">248</span><a id="line.248">     * Cuando termine la espera se ejecutará una tarea, que se pasa como parámetro. La espera es finita y</a>
+<span class="sourceLineNo">249</span><a id="line.249">     * terminará en algún momento, si llega un número finito de hormigas al sistema. Cuando este</a>
+<span class="sourceLineNo">250</span><a id="line.250">     * método devuelve el control a quien lo llama, se garantiza que la espera a la llegada de hormigas se</a>
+<span class="sourceLineNo">251</span><a id="line.251">     * haya puesto en marcha, y el coordinador se encuentra, a todos los efectos, listo para atender tales</a>
+<span class="sourceLineNo">252</span><a id="line.252">     * eventos.</a>
+<span class="sourceLineNo">253</span><a id="line.253">     * @param tareaFinEspera La tarea a ejecutar cuando termine la espera.</a>
+<span class="sourceLineNo">254</span><a id="line.254">     * @param segundosEspera El tiempo máximo a esperar desde la llegada de la última hormiga o el inicio</a>
+<span class="sourceLineNo">255</span><a id="line.255">     * de la espera.</a>
+<span class="sourceLineNo">256</span><a id="line.256">     * @throws IllegalArgumentException Si segundosEspera es menor o igual que 0, o tareaFinEspera es nula.</a>
+<span class="sourceLineNo">257</span><a id="line.257">     */</a>
+<span class="sourceLineNo">258</span><a id="line.258">    void esperarLlegadaHormigas(final Runnable tareaFinEspera, final short segundosEspera) {</a>
+<span class="sourceLineNo">259</span><a id="line.259">        // Estamos esperando por la llegada de hormigas sí o sí</a>
+<span class="sourceLineNo">260</span><a id="line.260">        esperandoHormigas = true;</a>
+<span class="sourceLineNo">261</span><a id="line.261"></a>
+<span class="sourceLineNo">262</span><a id="line.262">        // Avisamos al usuario de la intención de espera</a>
+<span class="sourceLineNo">263</span><a id="line.263">        mundo.getLogger().log(Level.INFO, "Esperando a que lleguen las hormigas al sistema multiagente...");</a>
+<span class="sourceLineNo">264</span><a id="line.264"></a>
+<span class="sourceLineNo">265</span><a id="line.265">        // Creamos el hilo para la espera, y le decimos a la JVM que lo inicie</a>
+<span class="sourceLineNo">266</span><a id="line.266">        final EsperadorHormigas eh = new EsperadorHormigas(segundosEspera, tareaFinEspera);</a>
+<span class="sourceLineNo">267</span><a id="line.267">        new Thread(eh).start();</a>
+<span class="sourceLineNo">268</span><a id="line.268"></a>
+<span class="sourceLineNo">269</span><a id="line.269">        // No sabemos cuándo se va a iniciar el hilo (la JVM lo hará, en coordinación con el</a>
+<span class="sourceLineNo">270</span><a id="line.270">        // SO, en algún momento futuro desconocido). Por tanto, debemos de esperar por él para</a>
+<span class="sourceLineNo">271</span><a id="line.271">        // garantizar una postcondición de salida de este método</a>
+<span class="sourceLineNo">272</span><a id="line.272">        candadoInicioEspera.lock();</a>
+<span class="sourceLineNo">273</span><a id="line.273">        try {</a>
+<span class="sourceLineNo">274</span><a id="line.274">            while (!eh.hiloIniciado()) {</a>
+<span class="sourceLineNo">275</span><a id="line.275">                try {</a>
+<span class="sourceLineNo">276</span><a id="line.276">                    final boolean tiempoNoExpirado = condicionInicioEspera.await(10, TimeUnit.SECONDS);</a>
+<span class="sourceLineNo">277</span><a id="line.277">                    if (!tiempoNoExpirado) {</a>
+<span class="sourceLineNo">278</span><a id="line.278">                        mundo.getLogger().log(Level.WARNING, "El hilo de espera de llegada de hormigas no se ha iniciado en 10 segundos. Si la espera tarda demasiado, por favor reinicie el sistema.");</a>
+<span class="sourceLineNo">279</span><a id="line.279">                    }</a>
+<span class="sourceLineNo">280</span><a id="line.280">                } catch (InterruptedException exc) {</a>
+<span class="sourceLineNo">281</span><a id="line.281">                    mundo.getLogger().log(Level.INFO, "Esperando a que se inicie el hilo de espera de llegada de hormigas...");</a>
+<span class="sourceLineNo">282</span><a id="line.282">                }</a>
+<span class="sourceLineNo">283</span><a id="line.283">            }</a>
+<span class="sourceLineNo">284</span><a id="line.284">        } finally {</a>
+<span class="sourceLineNo">285</span><a id="line.285">            candadoInicioEspera.unlock();</a>
+<span class="sourceLineNo">286</span><a id="line.286">        }</a>
+<span class="sourceLineNo">287</span><a id="line.287">    }</a>
+<span class="sourceLineNo">288</span><a id="line.288"></a>
+<span class="sourceLineNo">289</span><a id="line.289">    /**</a>
+<span class="sourceLineNo">290</span><a id="line.290">     * Espera a que todas las hormigas de las que se tiene constancia en el SMA terminen</a>
+<span class="sourceLineNo">291</span><a id="line.291">     * su reacción a la percepción de paso de tiempo. Este método no devuelve el control a</a>
+<span class="sourceLineNo">292</span><a id="line.292">     * quien lo llama hasta que todas las hormigas han reaccionado, o bien ha pasado un tiempo</a>
+<span class="sourceLineNo">293</span><a id="line.293">     * máximo.</a>
+<span class="sourceLineNo">294</span><a id="line.294">     * @param tareaNotificacionRespuesta La tarea que se responsabiliza de enviar la percepción de</a>
+<span class="sourceLineNo">295</span><a id="line.295">     * que el entorno está listo para esperar por la respuesta de las hormigas. Se ejecutará en</a>
+<span class="sourceLineNo">296</span><a id="line.296">     * el mismo hilo que ha llamado a este método.</a>
+<span class="sourceLineNo">297</span><a id="line.297">     * @param segundosEspera Los segundos a esperar como máximo a que todas las hormigas</a>
+<span class="sourceLineNo">298</span><a id="line.298">     * respondan. Un valor menor o igual que 0 significa esperar indefinidamente.</a>
+<span class="sourceLineNo">299</span><a id="line.299">     * @throws IllegalStateException Si se vuelve a intentar esperar por la respuesta de hormigas</a>
+<span class="sourceLineNo">300</span><a id="line.300">     * mientras tal espera está teniendo lugar.</a>
+<span class="sourceLineNo">301</span><a id="line.301">     * @throws IllegalArgumentException Si el parámetro tareaNotificacionRespuesta es nulo.</a>
+<span class="sourceLineNo">302</span><a id="line.302">     */</a>
+<span class="sourceLineNo">303</span><a id="line.303">    void esperarRespuestaHormigas(final Runnable tareaNotificacionRespuesta, final short segundosEspera) {</a>
+<span class="sourceLineNo">304</span><a id="line.304">        if (tareaNotificacionRespuesta == null) {</a>
+<span class="sourceLineNo">305</span><a id="line.305">            throw new IllegalArgumentException("La tarea de notificación de que el SMA está listo para esperar por la respuesta de hormigas no puede ser nula.");</a>
+<span class="sourceLineNo">306</span><a id="line.306">        }</a>
+<span class="sourceLineNo">307</span><a id="line.307"></a>
+<span class="sourceLineNo">308</span><a id="line.308">        candadoEsperaRespuesta.lock();</a>
+<span class="sourceLineNo">309</span><a id="line.309">        try {</a>
+<span class="sourceLineNo">310</span><a id="line.310">            // Comprobar que no estamos ya esperando por la respuesta de hormigas</a>
+<span class="sourceLineNo">311</span><a id="line.311">            if (hormigasEsperandoRespuesta &gt;= 0) {</a>
+<span class="sourceLineNo">312</span><a id="line.312">                throw new IllegalStateException("No se puede esperar por la respuesta de las hormigas mientras tal espera está ya teniendo lugar.");</a>
+<span class="sourceLineNo">313</span><a id="line.313">            }</a>
+<span class="sourceLineNo">314</span><a id="line.314"></a>
+<span class="sourceLineNo">315</span><a id="line.315">            // Avisar al usuario del inicio de la espera</a>
+<span class="sourceLineNo">316</span><a id="line.316">            mundo.getLogger().log(Level.INFO, "Esperando a que todas las hormigas ejecuten su respuesta...");</a>
+<span class="sourceLineNo">317</span><a id="line.317"></a>
+<span class="sourceLineNo">318</span><a id="line.318">            // Inicialmente, esperaremos por la respuesta de tantas hormigas como haya.</a>
+<span class="sourceLineNo">319</span><a id="line.319">            // Las acciones de las hormigas (llegada, muerte y respuesta) influirán en el</a>
+<span class="sourceLineNo">320</span><a id="line.320">            // número de hormigas por las que se espera la respuesta</a>
+<span class="sourceLineNo">321</span><a id="line.321">            hormigasEsperandoRespuesta = mundo.getNHormigas();</a>
+<span class="sourceLineNo">322</span><a id="line.322"></a>
+<span class="sourceLineNo">323</span><a id="line.323">            // Solo tiene sentido esperar si hay al menos una hormiga</a>
+<span class="sourceLineNo">324</span><a id="line.324">            final long inicioEspera = currentTimeMillis();</a>
+<span class="sourceLineNo">325</span><a id="line.325">            if (hormigasEsperandoRespuesta &gt; 0) {</a>
+<span class="sourceLineNo">326</span><a id="line.326">                // Notificar a los agentes hormigas que estamos listos para atender sus respuestas.</a>
+<span class="sourceLineNo">327</span><a id="line.327">                // Si hiciésemos esta notificación en otro momento, fuera de esta sección crítica, no garantizaríamos</a>
+<span class="sourceLineNo">328</span><a id="line.328">                // que viesen el inicio de la espera</a>
+<span class="sourceLineNo">329</span><a id="line.329">                tareaNotificacionRespuesta.run();</a>
+<span class="sourceLineNo">330</span><a id="line.330"></a>
+<span class="sourceLineNo">331</span><a id="line.331">                // Cuando todas las hormigas hayan terminado, terminar la espera</a>
+<span class="sourceLineNo">332</span><a id="line.332">                if (segundosEspera &gt; 0) {</a>
+<span class="sourceLineNo">333</span><a id="line.333">                    long inicioIteracionEspera;</a>
+<span class="sourceLineNo">334</span><a id="line.334">                    long tiempoRestante = segundosEspera * 1000;</a>
+<span class="sourceLineNo">335</span><a id="line.335"></a>
+<span class="sourceLineNo">336</span><a id="line.336">                    while (hormigasEsperandoRespuesta &gt; 0 &amp;&amp; tiempoRestante &gt; 0) {</a>
+<span class="sourceLineNo">337</span><a id="line.337">                        inicioIteracionEspera = currentTimeMillis();</a>
+<span class="sourceLineNo">338</span><a id="line.338"></a>
+<span class="sourceLineNo">339</span><a id="line.339">                        try {</a>
+<span class="sourceLineNo">340</span><a id="line.340">                            condicionEsperaRespuesta.await(tiempoRestante, TimeUnit.MILLISECONDS);</a>
+<span class="sourceLineNo">341</span><a id="line.341">                        } catch (InterruptedException ignorar) {}</a>
+<span class="sourceLineNo">342</span><a id="line.342"></a>
+<span class="sourceLineNo">343</span><a id="line.343">                        // Descontar el tiempo transcurrido esperando del tiempo restante</a>
+<span class="sourceLineNo">344</span><a id="line.344">                        tiempoRestante -= currentTimeMillis() - inicioIteracionEspera;</a>
+<span class="sourceLineNo">345</span><a id="line.345">                    }</a>
+<span class="sourceLineNo">346</span><a id="line.346">                } else {</a>
+<span class="sourceLineNo">347</span><a id="line.347">                    try {</a>
+<span class="sourceLineNo">348</span><a id="line.348">                        while (hormigasEsperandoRespuesta &gt; 0) {</a>
+<span class="sourceLineNo">349</span><a id="line.349">                            condicionEsperaRespuesta.await();</a>
+<span class="sourceLineNo">350</span><a id="line.350">                        }</a>
+<span class="sourceLineNo">351</span><a id="line.351">                    } catch (InterruptedException exc) {</a>
+<span class="sourceLineNo">352</span><a id="line.352">                        mundo.getLogger().log(Level.WARNING, "Se ha interrumpido la espera por la respuesta de las hormigas antes de que se completase. No se garantiza que se hayan recibido todas las respuestas posibles, y el resultado podría ser inconsistente.");</a>
+<span class="sourceLineNo">353</span><a id="line.353">                    }</a>
+<span class="sourceLineNo">354</span><a id="line.354">                }</a>
+<span class="sourceLineNo">355</span><a id="line.355">            } else {</a>
+<span class="sourceLineNo">356</span><a id="line.356">                mundo.getLogger().log(Level.INFO, "No hay hormigas por las que esperar.");</a>
+<span class="sourceLineNo">357</span><a id="line.357">            }</a>
+<span class="sourceLineNo">358</span><a id="line.358"></a>
+<span class="sourceLineNo">359</span><a id="line.359">            mundo.getLogger().log(Level.INFO, "Espera por respuesta de " + hormigasQueRespondieron.size() + " hormiga/s completada en " + ((currentTimeMillis() - inicioEspera) / 1000.0) + " s.");</a>
+<span class="sourceLineNo">360</span><a id="line.360"></a>
+<span class="sourceLineNo">361</span><a id="line.361">            // Ya no estamos esperando por la respuesta de hormigas</a>
+<span class="sourceLineNo">362</span><a id="line.362">            hormigasEsperandoRespuesta = Integer.MIN_VALUE;</a>
+<span class="sourceLineNo">363</span><a id="line.363">            hormigasQueRespondieron.clear();</a>
+<span class="sourceLineNo">364</span><a id="line.364">        } finally {</a>
+<span class="sourceLineNo">365</span><a id="line.365">            candadoEsperaRespuesta.unlock();</a>
+<span class="sourceLineNo">366</span><a id="line.366">        }</a>
+<span class="sourceLineNo">367</span><a id="line.367">    }</a>
+<span class="sourceLineNo">368</span><a id="line.368"></a>
+<span class="sourceLineNo">369</span><a id="line.369">    /**</a>
+<span class="sourceLineNo">370</span><a id="line.370">     * Comprueba si se está esperando actualmente por la llegada de hormigas al sistema.</a>
+<span class="sourceLineNo">371</span><a id="line.371">     * @return El valor de verdad de la proposición descrita.</a>
+<span class="sourceLineNo">372</span><a id="line.372">     */</a>
+<span class="sourceLineNo">373</span><a id="line.373">    boolean esperandoLlegadaHormigas() {</a>
+<span class="sourceLineNo">374</span><a id="line.374">        return esperandoHormigas;</a>
+<span class="sourceLineNo">375</span><a id="line.375">    }</a>
+<span class="sourceLineNo">376</span><a id="line.376"></a>
+<span class="sourceLineNo">377</span><a id="line.377">    /**</a>
+<span class="sourceLineNo">378</span><a id="line.378">     * Maneja el evento de llegada de una hormiga al SMA, enviando las notificaciones</a>
+<span class="sourceLineNo">379</span><a id="line.379">     * pertinentes.</a>
+<span class="sourceLineNo">380</span><a id="line.380">     * @param nombre La hormiga que llega.</a>
+<span class="sourceLineNo">381</span><a id="line.381">     */</a>
+<span class="sourceLineNo">382</span><a id="line.382">    public void llegadaHormiga(final String nombre) {</a>
+<span class="sourceLineNo">383</span><a id="line.383">        // Notificar a la espera por hormigas, si está teniendo lugar tal espera</a>
+<span class="sourceLineNo">384</span><a id="line.384">        // (asumimos que la inicialización del entorno se completa antes de que la creación</a>
+<span class="sourceLineNo">385</span><a id="line.385">        // asíncrona de agentes obtenga una referencia a este coordinador)</a>
+<span class="sourceLineNo">386</span><a id="line.386">        if (esperandoHormigas) {</a>
+<span class="sourceLineNo">387</span><a id="line.387">            candadoLlegadaHormigas.lock();</a>
+<span class="sourceLineNo">388</span><a id="line.388">            try {</a>
+<span class="sourceLineNo">389</span><a id="line.389">                condicionLlegada.signal();</a>
+<span class="sourceLineNo">390</span><a id="line.390">                hormigaRecienLlegada = true;</a>
+<span class="sourceLineNo">391</span><a id="line.391">            } finally {</a>
+<span class="sourceLineNo">392</span><a id="line.392">                candadoLlegadaHormigas.unlock();</a>
+<span class="sourceLineNo">393</span><a id="line.393">            }</a>
+<span class="sourceLineNo">394</span><a id="line.394">        }</a>
+<span class="sourceLineNo">395</span><a id="line.395"></a>
+<span class="sourceLineNo">396</span><a id="line.396">        // Si hay una espera por la respuesta de hormigas en curso, registrarnos</a>
+<span class="sourceLineNo">397</span><a id="line.397">        // como participante</a>
+<span class="sourceLineNo">398</span><a id="line.398">        candadoEsperaRespuesta.lock();</a>
+<span class="sourceLineNo">399</span><a id="line.399">        try {</a>
+<span class="sourceLineNo">400</span><a id="line.400">            if (hormigasEsperandoRespuesta &gt;= 0) {</a>
+<span class="sourceLineNo">401</span><a id="line.401">                ++hormigasEsperandoRespuesta;</a>
+<span class="sourceLineNo">402</span><a id="line.402">            }</a>
+<span class="sourceLineNo">403</span><a id="line.403">        } finally {</a>
+<span class="sourceLineNo">404</span><a id="line.404">            candadoEsperaRespuesta.unlock();</a>
+<span class="sourceLineNo">405</span><a id="line.405">        }</a>
+<span class="sourceLineNo">406</span><a id="line.406"></a>
+<span class="sourceLineNo">407</span><a id="line.407">        // Realizar la tarea de llegada de hormiga</a>
+<span class="sourceLineNo">408</span><a id="line.408">        tareaLlegadaHormiga.accept(nombre);</a>
+<span class="sourceLineNo">409</span><a id="line.409">    }</a>
+<span class="sourceLineNo">410</span><a id="line.410"></a>
+<span class="sourceLineNo">411</span><a id="line.411">    /**</a>
+<span class="sourceLineNo">412</span><a id="line.412">     * Maneja el evento de abandono de una hormiga del SMA, enviando las notificaciones</a>
+<span class="sourceLineNo">413</span><a id="line.413">     * pertinentes.</a>
+<span class="sourceLineNo">414</span><a id="line.414">     * @param nombre La hormiga que deja de formar parte del SMA.</a>
+<span class="sourceLineNo">415</span><a id="line.415">     */</a>
+<span class="sourceLineNo">416</span><a id="line.416">    public void muerteHormiga(final String nombre) {</a>
+<span class="sourceLineNo">417</span><a id="line.417">        // Si hay una espera por la respuesta de hormigas en curso, cancelar</a>
+<span class="sourceLineNo">418</span><a id="line.418">        // nuestra participación en la respuesta</a>
+<span class="sourceLineNo">419</span><a id="line.419">        candadoEsperaRespuesta.lock();</a>
+<span class="sourceLineNo">420</span><a id="line.420">        try {</a>
+<span class="sourceLineNo">421</span><a id="line.421">            if (hormigasEsperandoRespuesta &gt; 0) {</a>
+<span class="sourceLineNo">422</span><a id="line.422">                // Avisar a quien espera por la respuesta de todas las hormigas si esta fue la última</a>
+<span class="sourceLineNo">423</span><a id="line.423">                if (--hormigasEsperandoRespuesta == 0) {</a>
+<span class="sourceLineNo">424</span><a id="line.424">                    condicionEsperaRespuesta.signal();</a>
+<span class="sourceLineNo">425</span><a id="line.425">                }</a>
+<span class="sourceLineNo">426</span><a id="line.426">            }</a>
+<span class="sourceLineNo">427</span><a id="line.427">        } finally {</a>
+<span class="sourceLineNo">428</span><a id="line.428">            candadoEsperaRespuesta.unlock();</a>
+<span class="sourceLineNo">429</span><a id="line.429">        }</a>
+<span class="sourceLineNo">430</span><a id="line.430"></a>
+<span class="sourceLineNo">431</span><a id="line.431">        // Realizar la tarea de muerte de hormiga</a>
+<span class="sourceLineNo">432</span><a id="line.432">        tareaMuerteHormiga.accept(nombre);</a>
+<span class="sourceLineNo">433</span><a id="line.433">    }</a>
+<span class="sourceLineNo">434</span><a id="line.434"></a>
+<span class="sourceLineNo">435</span><a id="line.435">    /**</a>
+<span class="sourceLineNo">436</span><a id="line.436">     * Maneja el evento de respuesta de una hormiga a la percepción de paso del tiempo,</a>
+<span class="sourceLineNo">437</span><a id="line.437">     * enviando las notificaciones pertinentes.</a>
+<span class="sourceLineNo">438</span><a id="line.438">     * @param nombre El nombre de la hormiga que responde a la percepción.</a>
+<span class="sourceLineNo">439</span><a id="line.439">     */</a>
+<span class="sourceLineNo">440</span><a id="line.440">    public void respuestaHormiga(final String nombre) {</a>
+<span class="sourceLineNo">441</span><a id="line.441">        // En principio, solo tiene sentido que las hormigas envíen respuestas si estamos esperando</a>
+<span class="sourceLineNo">442</span><a id="line.442">        // por hormigas</a>
+<span class="sourceLineNo">443</span><a id="line.443">        candadoEsperaRespuesta.lock();</a>
+<span class="sourceLineNo">444</span><a id="line.444">        try {</a>
+<span class="sourceLineNo">445</span><a id="line.445">            if (hormigasEsperandoRespuesta &gt; 0) {</a>
+<span class="sourceLineNo">446</span><a id="line.446">                // Solo contar una respuesta por espera</a>
+<span class="sourceLineNo">447</span><a id="line.447">                if (!hormigasQueRespondieron.contains(nombre)) {</a>
+<span class="sourceLineNo">448</span><a id="line.448">                    hormigasQueRespondieron.add(nombre);</a>
+<span class="sourceLineNo">449</span><a id="line.449"></a>
+<span class="sourceLineNo">450</span><a id="line.450">                    // Avisar a quien espera por la respuesta de todas las hormigas si esta fue la última</a>
+<span class="sourceLineNo">451</span><a id="line.451">                    if (--hormigasEsperandoRespuesta == 0) {</a>
+<span class="sourceLineNo">452</span><a id="line.452">                        condicionEsperaRespuesta.signal();</a>
+<span class="sourceLineNo">453</span><a id="line.453">                    }</a>
+<span class="sourceLineNo">454</span><a id="line.454">                }</a>
+<span class="sourceLineNo">455</span><a id="line.455">            } else {</a>
+<span class="sourceLineNo">456</span><a id="line.456">                // Esto no debería de ocurrir: se espera recibir la respuesta solo si estamos esperando la respuesta de al menos una hormiga</a>
+<span class="sourceLineNo">457</span><a id="line.457">                mundo.getLogger().log(Level.WARNING, "La hormiga " + nombre + " ha respondido, pero el entorno no esperaba que lo hiciese en este momento. Esto puede ser síntoma de algún problema.");</a>
+<span class="sourceLineNo">458</span><a id="line.458">            }</a>
+<span class="sourceLineNo">459</span><a id="line.459">        } finally {</a>
+<span class="sourceLineNo">460</span><a id="line.460">            candadoEsperaRespuesta.unlock();</a>
+<span class="sourceLineNo">461</span><a id="line.461">        }</a>
+<span class="sourceLineNo">462</span><a id="line.462">    }</a>
+<span class="sourceLineNo">463</span><a id="line.463">}</a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</main>
+</body>
+</html>

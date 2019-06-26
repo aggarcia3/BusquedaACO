@@ -1,0 +1,228 @@
+<!DOCTYPE HTML>
+<html lang="es">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<main role="main">
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a id="line.1">// Entorno para el proyecto BusquedaACO.mas2j</a>
+<span class="sourceLineNo">002</span><a id="line.2"></a>
+<span class="sourceLineNo">003</span><a id="line.3">package esei.si.alejandrogg.busquedaACO;</a>
+<span class="sourceLineNo">004</span><a id="line.4"></a>
+<span class="sourceLineNo">005</span><a id="line.5">import java.util.logging.Level;</a>
+<span class="sourceLineNo">006</span><a id="line.6">import java.util.concurrent.Callable;</a>
+<span class="sourceLineNo">007</span><a id="line.7"></a>
+<span class="sourceLineNo">008</span><a id="line.8">import static java.lang.System.currentTimeMillis;</a>
+<span class="sourceLineNo">009</span><a id="line.9"></a>
+<span class="sourceLineNo">010</span><a id="line.10">/**</a>
+<span class="sourceLineNo">011</span><a id="line.11"> * Una fabricación pura que se responsabiliza del correcto avance del tiempo</a>
+<span class="sourceLineNo">012</span><a id="line.12"> * discreto del sistema, en coordinación con el {@link Mundo}. Se ejecuta en</a>
+<span class="sourceLineNo">013</span><a id="line.13"> * otro hilo. El comportamiento señalizador del siguiente instante de tiempo</a>
+<span class="sourceLineNo">014</span><a id="line.14"> * es completamente personalizable. Proporciona más control sobre la variabilidad</a>
+<span class="sourceLineNo">015</span><a id="line.15"> * del periodo de avance que la interfaz ScheduledExecutorService de Java.</a>
+<span class="sourceLineNo">016</span><a id="line.16"> * @author Alejandro González García</a>
+<span class="sourceLineNo">017</span><a id="line.17"> */</a>
+<span class="sourceLineNo">018</span><a id="line.18">final class Tiempo implements Runnable {</a>
+<span class="sourceLineNo">019</span><a id="line.19">    /**</a>
+<span class="sourceLineNo">020</span><a id="line.20">     * El mundo sobre el que esta clase brindará sus servicios.</a>
+<span class="sourceLineNo">021</span><a id="line.21">     */</a>
+<span class="sourceLineNo">022</span><a id="line.22">    private final Mundo mundo;</a>
+<span class="sourceLineNo">023</span><a id="line.23">    /**</a>
+<span class="sourceLineNo">024</span><a id="line.24">     * El hilo encargado de realizar el avance periódico del tiempo.</a>
+<span class="sourceLineNo">025</span><a id="line.25">     */</a>
+<span class="sourceLineNo">026</span><a id="line.26">    private final Thread hilo;</a>
+<span class="sourceLineNo">027</span><a id="line.27">    /**</a>
+<span class="sourceLineNo">028</span><a id="line.28">     * Contiene el código a ejecutar en su método {@link Callable#call} para notificar</a>
+<span class="sourceLineNo">029</span><a id="line.29">     * el paso del tiempo.</a>
+<span class="sourceLineNo">030</span><a id="line.30">     */</a>
+<span class="sourceLineNo">031</span><a id="line.31">    private final Callable&lt;Boolean&gt; tick;</a>
+<span class="sourceLineNo">032</span><a id="line.32">    /**</a>
+<span class="sourceLineNo">033</span><a id="line.33">     * Los milisegundos que pasan entre dos instantes de tiempo discretos.</a>
+<span class="sourceLineNo">034</span><a id="line.34">     */</a>
+<span class="sourceLineNo">035</span><a id="line.35">    private volatile int msPeriodo;</a>
+<span class="sourceLineNo">036</span><a id="line.36">    /**</a>
+<span class="sourceLineNo">037</span><a id="line.37">     * Toma el valor verdadero si se ha iniciado el avance del tiempo discreto,</a>
+<span class="sourceLineNo">038</span><a id="line.38">     * falso en caso contrario.</a>
+<span class="sourceLineNo">039</span><a id="line.39">     */</a>
+<span class="sourceLineNo">040</span><a id="line.40">    private volatile boolean iniciado = false;</a>
+<span class="sourceLineNo">041</span><a id="line.41"></a>
+<span class="sourceLineNo">042</span><a id="line.42">    /**</a>
+<span class="sourceLineNo">043</span><a id="line.43">     * Crea un nuevo objeto responsable de ejecutar el avance periódico del tiempo.</a>
+<span class="sourceLineNo">044</span><a id="line.44">     * @param mundo El mundo (entorno) sobre el que se pasará el tiempo.</a>
+<span class="sourceLineNo">045</span><a id="line.45">     * @param tick El código a ejecutar para notificar el paso del tiempo. Si devuelve</a>
+<span class="sourceLineNo">046</span><a id="line.46">     * verdadero, se detendrá la ejecución del avance periódico del tiempo.</a>
+<span class="sourceLineNo">047</span><a id="line.47">     * @param msPeriodo Los milisegundos que deben transcurrir entre dos instantes</a>
+<span class="sourceLineNo">048</span><a id="line.48">     * de tiempo consecutivos.</a>
+<span class="sourceLineNo">049</span><a id="line.49">     * @throws IllegalArgumentException Si msPeriodo es estrictamente menor que 0,</a>
+<span class="sourceLineNo">050</span><a id="line.50">     * tick es nulo o mundo es nulo.</a>
+<span class="sourceLineNo">051</span><a id="line.51">     */</a>
+<span class="sourceLineNo">052</span><a id="line.52">    Tiempo(final Mundo mundo, final Callable&lt;Boolean&gt; tick, final int msPeriodo) {</a>
+<span class="sourceLineNo">053</span><a id="line.53">        if (mundo == null) {</a>
+<span class="sourceLineNo">054</span><a id="line.54">            throw new IllegalArgumentException("El tiempo de un mundo nulo no puede avanzar.");</a>
+<span class="sourceLineNo">055</span><a id="line.55">        }</a>
+<span class="sourceLineNo">056</span><a id="line.56">        if (tick == null) {</a>
+<span class="sourceLineNo">057</span><a id="line.57">            throw new IllegalArgumentException("No tiene sentido que la tarea a ejecutar para notificar el paso del tiempo sea nula.");</a>
+<span class="sourceLineNo">058</span><a id="line.58">        }</a>
+<span class="sourceLineNo">059</span><a id="line.59"></a>
+<span class="sourceLineNo">060</span><a id="line.60">        this.mundo = mundo;</a>
+<span class="sourceLineNo">061</span><a id="line.61">        this.tick = tick;</a>
+<span class="sourceLineNo">062</span><a id="line.62">        this.hilo = new Thread(this, "Tiempo");</a>
+<span class="sourceLineNo">063</span><a id="line.63">        hilo.setDaemon(true);</a>
+<span class="sourceLineNo">064</span><a id="line.64"></a>
+<span class="sourceLineNo">065</span><a id="line.65">        setPeriodo(msPeriodo);</a>
+<span class="sourceLineNo">066</span><a id="line.66">    }</a>
+<span class="sourceLineNo">067</span><a id="line.67"></a>
+<span class="sourceLineNo">068</span><a id="line.68">    /**</a>
+<span class="sourceLineNo">069</span><a id="line.69">     * Cambia el periodo que transcurre entre dos instantes de tiempo consecutivos. La acción</a>
+<span class="sourceLineNo">070</span><a id="line.70">     * de este método tendrá efecto tras la próxima ejecución de {@link tick}.</a>
+<span class="sourceLineNo">071</span><a id="line.71">     * @param msPeriodo El nuevo periodo a establecer.</a>
+<span class="sourceLineNo">072</span><a id="line.72">     * @throws IllegalArgumentException Si msPeriodo es estrictamente menor que 0.</a>
+<span class="sourceLineNo">073</span><a id="line.73">     */</a>
+<span class="sourceLineNo">074</span><a id="line.74">    void setPeriodo(final int msPeriodo) {</a>
+<span class="sourceLineNo">075</span><a id="line.75">        if (msPeriodo &lt; 0) {</a>
+<span class="sourceLineNo">076</span><a id="line.76">            throw new IllegalArgumentException("No puede pasar un tiempo negativo entre dos instantes de tiempo discretos.");</a>
+<span class="sourceLineNo">077</span><a id="line.77">        }</a>
+<span class="sourceLineNo">078</span><a id="line.78">        this.msPeriodo = msPeriodo;</a>
+<span class="sourceLineNo">079</span><a id="line.79">    }</a>
+<span class="sourceLineNo">080</span><a id="line.80"></a>
+<span class="sourceLineNo">081</span><a id="line.81">    /**</a>
+<span class="sourceLineNo">082</span><a id="line.82">     * Comienza el avance periódico del tiempo del SMA, en otro hilo de ejecución. Si el hilo actual ya</a>
+<span class="sourceLineNo">083</span><a id="line.83">     * ha comenzado el avance del tiempo del SMA, este método no tiene efecto. Este método no es seguro</a>
+<span class="sourceLineNo">084</span><a id="line.84">     * para ser ejecutado de manera concurrente. El avance periódico del tiempo no se puede reiniciar</a>
+<span class="sourceLineNo">085</span><a id="line.85">     * una vez parado.</a>
+<span class="sourceLineNo">086</span><a id="line.86">     * @return La instancia del objeto sobre el que se llama a este método.</a>
+<span class="sourceLineNo">087</span><a id="line.87">     */</a>
+<span class="sourceLineNo">088</span><a id="line.88">    Tiempo iniciar() {</a>
+<span class="sourceLineNo">089</span><a id="line.89">        if (!iniciado) {</a>
+<span class="sourceLineNo">090</span><a id="line.90">            hilo.start();</a>
+<span class="sourceLineNo">091</span><a id="line.91">            iniciado = true;</a>
+<span class="sourceLineNo">092</span><a id="line.92">        }</a>
+<span class="sourceLineNo">093</span><a id="line.93">        return this;</a>
+<span class="sourceLineNo">094</span><a id="line.94">    }</a>
+<span class="sourceLineNo">095</span><a id="line.95"></a>
+<span class="sourceLineNo">096</span><a id="line.96">    /**</a>
+<span class="sourceLineNo">097</span><a id="line.97">     * Detiene de manera ordenada el avance del tiempo. Tras la ejecución de este método</a>
+<span class="sourceLineNo">098</span><a id="line.98">     * se ha hecho un mejor intento para detener la ejecución de {@link tick}.</a>
+<span class="sourceLineNo">099</span><a id="line.99">     */</a>
+<span class="sourceLineNo">100</span><a id="line.100">    void parar() {</a>
+<span class="sourceLineNo">101</span><a id="line.101">        if (iniciado) {</a>
+<span class="sourceLineNo">102</span><a id="line.102">            // Avisar al hilo para que se detenga</a>
+<span class="sourceLineNo">103</span><a id="line.103">            hilo.interrupt();</a>
+<span class="sourceLineNo">104</span><a id="line.104"></a>
+<span class="sourceLineNo">105</span><a id="line.105">            // Esperar hasta 10 segundos para que acate la orden</a>
+<span class="sourceLineNo">106</span><a id="line.106">            try {</a>
+<span class="sourceLineNo">107</span><a id="line.107">                hilo.join(10000);</a>
+<span class="sourceLineNo">108</span><a id="line.108">            } catch (InterruptedException ignorar) {}</a>
+<span class="sourceLineNo">109</span><a id="line.109"></a>
+<span class="sourceLineNo">110</span><a id="line.110">            // Si el hilo sigue ejecutándose pese a todo, avisar de ello</a>
+<span class="sourceLineNo">111</span><a id="line.111">            // (como es un hilo de fondo, daemon, no debería de afectar al cierre de la JVM)</a>
+<span class="sourceLineNo">112</span><a id="line.112">            if (!hilo.getState().equals(Thread.State.TERMINATED)) {</a>
+<span class="sourceLineNo">113</span><a id="line.113">                mundo.getLogger().log(Level.WARNING, "Se intentó parar el hilo responsable de avanzar el tiempo en el SMA, pero no respondió en 10 segundos. Continuando de todas formas.");</a>
+<span class="sourceLineNo">114</span><a id="line.114">            }</a>
+<span class="sourceLineNo">115</span><a id="line.115">        }</a>
+<span class="sourceLineNo">116</span><a id="line.116">    }</a>
+<span class="sourceLineNo">117</span><a id="line.117"></a>
+<span class="sourceLineNo">118</span><a id="line.118">    @Override</a>
+<span class="sourceLineNo">119</span><a id="line.119">    public void run() {</a>
+<span class="sourceLineNo">120</span><a id="line.120">        final Thread esteHilo = Thread.currentThread();</a>
+<span class="sourceLineNo">121</span><a id="line.121">        boolean seDeseaParar = false;</a>
+<span class="sourceLineNo">122</span><a id="line.122"></a>
+<span class="sourceLineNo">123</span><a id="line.123">        while (!seDeseaParar &amp;&amp; !esteHilo.interrupted()) {</a>
+<span class="sourceLineNo">124</span><a id="line.124">            // Avanzamos al siguiente instante, observando lo que hemos tardado en procesar</a>
+<span class="sourceLineNo">125</span><a id="line.125">            // el tick</a>
+<span class="sourceLineNo">126</span><a id="line.126">            mundo.getLogger().log(Level.INFO, "Comienza la simulación del siguiente instante de tiempo.");</a>
+<span class="sourceLineNo">127</span><a id="line.127">            final long timestampInicioTick = currentTimeMillis();</a>
+<span class="sourceLineNo">128</span><a id="line.128">            try {</a>
+<span class="sourceLineNo">129</span><a id="line.129">                seDeseaParar = tick.call();</a>
+<span class="sourceLineNo">130</span><a id="line.130">            } catch (Exception exc) {</a>
+<span class="sourceLineNo">131</span><a id="line.131">                mundo.getLogger().log(Level.WARNING, "Ha ocurrido un error no esperado mientras se ejecutaba la tarea de avance de tiempo del entorno. Detalles: ", exc);</a>
+<span class="sourceLineNo">132</span><a id="line.132">            }</a>
+<span class="sourceLineNo">133</span><a id="line.133">            final long timestampFinTick = currentTimeMillis();</a>
+<span class="sourceLineNo">134</span><a id="line.134">            mundo.getLogger().log(Level.INFO, "Finaliza la simulación del siguiente instante de tiempo.");</a>
+<span class="sourceLineNo">135</span><a id="line.135"></a>
+<span class="sourceLineNo">136</span><a id="line.136">            // Dormirnos si nos sobra tiempo hasta el siguiente tick, y no queremos pararnos</a>
+<span class="sourceLineNo">137</span><a id="line.137">            if (!seDeseaParar &amp;&amp; timestampFinTick - timestampInicioTick &lt; msPeriodo) {</a>
+<span class="sourceLineNo">138</span><a id="line.138">                try {</a>
+<span class="sourceLineNo">139</span><a id="line.139">                    esteHilo.sleep(msPeriodo - (timestampFinTick - timestampInicioTick));</a>
+<span class="sourceLineNo">140</span><a id="line.140">                } catch (InterruptedException exc) {</a>
+<span class="sourceLineNo">141</span><a id="line.141">                    // Restaurar bandera de interrupción, para salir del bucle</a>
+<span class="sourceLineNo">142</span><a id="line.142">                    esteHilo.interrupt();</a>
+<span class="sourceLineNo">143</span><a id="line.143">                } catch (IllegalArgumentException ignorar) {</a>
+<span class="sourceLineNo">144</span><a id="line.144">                    // No interrumpir la ejecución aunque el resultado de la operación</a>
+<span class="sourceLineNo">145</span><a id="line.145">                    // sea negativo (overflow). Preferimos hacer el siguiente tick a destiempo</a>
+<span class="sourceLineNo">146</span><a id="line.146">                }</a>
+<span class="sourceLineNo">147</span><a id="line.147">            } else if (!seDeseaParar &amp;&amp; msPeriodo &gt; 0) {</a>
+<span class="sourceLineNo">148</span><a id="line.148">                // Avisar si la ejecución fue lenta o muy ajustada, lo que puede generar</a>
+<span class="sourceLineNo">149</span><a id="line.149">                // retrasos en la simulación</a>
+<span class="sourceLineNo">150</span><a id="line.150">                mundo.getLogger().log(Level.WARNING, "Se ha tardado tanto tiempo o más en avanzar al siguiente instante de tiempo como el periodo de avance. ¿Está sobrecargado el sistema?");</a>
+<span class="sourceLineNo">151</span><a id="line.151">            }</a>
+<span class="sourceLineNo">152</span><a id="line.152">        }</a>
+<span class="sourceLineNo">153</span><a id="line.153">    }</a>
+<span class="sourceLineNo">154</span><a id="line.154">}</a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE HTML>
+<html lang="es">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<main role="main">
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a id="line.1">package esei.si.alejandrogg.busquedaACO.agentes;</a>
+<span class="sourceLineNo">002</span><a id="line.2"></a>
+<span class="sourceLineNo">003</span><a id="line.3">import jason.architecture.AgArch;</a>
+<span class="sourceLineNo">004</span><a id="line.4"></a>
+<span class="sourceLineNo">005</span><a id="line.5">import esei.si.alejandrogg.busquedaACO.Mundo;</a>
+<span class="sourceLineNo">006</span><a id="line.6"></a>
+<span class="sourceLineNo">007</span><a id="line.7">/**</a>
+<span class="sourceLineNo">008</span><a id="line.8"> * Modela la arquitectura de agente hormiga, que es muy similar a una</a>
+<span class="sourceLineNo">009</span><a id="line.9"> * convencional, pero avisa al entorno en caso de que el agente</a>
+<span class="sourceLineNo">010</span><a id="line.10"> * se inicie, muera o se detenga.</a>
+<span class="sourceLineNo">011</span><a id="line.11"> * @author Alejandro González García</a>
+<span class="sourceLineNo">012</span><a id="line.12"> */</a>
+<span class="sourceLineNo">013</span><a id="line.13">public final class ArquitecturaHormiga extends AgArch {</a>
+<span class="sourceLineNo">014</span><a id="line.14">    /**</a>
+<span class="sourceLineNo">015</span><a id="line.15">     * {@inheritDoc}</a>
+<span class="sourceLineNo">016</span><a id="line.16">     * @implNote. El método asume que el entorno es accesible desde la JVM local.</a>
+<span class="sourceLineNo">017</span><a id="line.17">     * Para funcionar en una arquitectura distribuida, requiere ser reimplementado con</a>
+<span class="sourceLineNo">018</span><a id="line.18">     * la &lt;a href="https://docs.oracle.com/javase/8/docs/technotes/guides/rmi/"&gt;API de RMI de Java&lt;/a&gt;.</a>
+<span class="sourceLineNo">019</span><a id="line.19">     */</a>
+<span class="sourceLineNo">020</span><a id="line.20">    @Override</a>
+<span class="sourceLineNo">021</span><a id="line.21">    public void init() throws Exception {</a>
+<span class="sourceLineNo">022</span><a id="line.22">        super.init();</a>
+<span class="sourceLineNo">023</span><a id="line.23"></a>
+<span class="sourceLineNo">024</span><a id="line.24">        // Avisar al coordinador de nuestra llegada</a>
+<span class="sourceLineNo">025</span><a id="line.25">        Mundo.get().getCoordinadorHormigas().llegadaHormiga(getAgName());</a>
+<span class="sourceLineNo">026</span><a id="line.26">    }</a>
+<span class="sourceLineNo">027</span><a id="line.27"></a>
+<span class="sourceLineNo">028</span><a id="line.28">    /**</a>
+<span class="sourceLineNo">029</span><a id="line.29">     * {@inheritDoc}</a>
+<span class="sourceLineNo">030</span><a id="line.30">     * @implNote. El método asume que el entorno es accesible desde la JVM local.</a>
+<span class="sourceLineNo">031</span><a id="line.31">     * Para funcionar en una arquitectura distribuida, requiere ser reimplementado con</a>
+<span class="sourceLineNo">032</span><a id="line.32">     * la &lt;a href="https://docs.oracle.com/javase/8/docs/technotes/guides/rmi/"&gt;API de RMI de Java&lt;/a&gt;.</a>
+<span class="sourceLineNo">033</span><a id="line.33">     */</a>
+<span class="sourceLineNo">034</span><a id="line.34">    @Override</a>
+<span class="sourceLineNo">035</span><a id="line.35">    public void stop() {</a>
+<span class="sourceLineNo">036</span><a id="line.36">        super.stop();</a>
+<span class="sourceLineNo">037</span><a id="line.37"></a>
+<span class="sourceLineNo">038</span><a id="line.38">        // Avisar al coordinador de nuestra muerte</a>
+<span class="sourceLineNo">039</span><a id="line.39">        Mundo.get().getCoordinadorHormigas().muerteHormiga(getAgName());</a>
+<span class="sourceLineNo">040</span><a id="line.40">    }</a>
+<span class="sourceLineNo">041</span><a id="line.41">}</a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</main>
+</body>
+</html>

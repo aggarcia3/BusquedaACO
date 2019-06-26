@@ -1,0 +1,420 @@
+<!DOCTYPE HTML>
+<html lang="es">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<main role="main">
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a id="line.1">// Entorno para el proyecto BusquedaACO.mas2j</a>
+<span class="sourceLineNo">002</span><a id="line.2"></a>
+<span class="sourceLineNo">003</span><a id="line.3">package esei.si.alejandrogg.busquedaACO;</a>
+<span class="sourceLineNo">004</span><a id="line.4"></a>
+<span class="sourceLineNo">005</span><a id="line.5">import java.util.NoSuchElementException;</a>
+<span class="sourceLineNo">006</span><a id="line.6">import java.lang.reflect.InvocationTargetException;</a>
+<span class="sourceLineNo">007</span><a id="line.7">import java.io.File;</a>
+<span class="sourceLineNo">008</span><a id="line.8">import java.io.IOException;</a>
+<span class="sourceLineNo">009</span><a id="line.9"></a>
+<span class="sourceLineNo">010</span><a id="line.10">import java.awt.image.BufferedImage;</a>
+<span class="sourceLineNo">011</span><a id="line.11">import java.awt.Component;</a>
+<span class="sourceLineNo">012</span><a id="line.12">import java.awt.Container;</a>
+<span class="sourceLineNo">013</span><a id="line.13">import java.awt.Dimension;</a>
+<span class="sourceLineNo">014</span><a id="line.14">import java.awt.Font;</a>
+<span class="sourceLineNo">015</span><a id="line.15">import java.awt.Graphics;</a>
+<span class="sourceLineNo">016</span><a id="line.16">import java.awt.Graphics2D;</a>
+<span class="sourceLineNo">017</span><a id="line.17">import java.awt.Color;</a>
+<span class="sourceLineNo">018</span><a id="line.18">import java.awt.font.FontRenderContext;</a>
+<span class="sourceLineNo">019</span><a id="line.19">import java.awt.font.TextLayout;</a>
+<span class="sourceLineNo">020</span><a id="line.20">import java.awt.geom.Rectangle2D;</a>
+<span class="sourceLineNo">021</span><a id="line.21">import javax.swing.BoxLayout;</a>
+<span class="sourceLineNo">022</span><a id="line.22">import javax.swing.JFrame;</a>
+<span class="sourceLineNo">023</span><a id="line.23">import javax.swing.JLabel;</a>
+<span class="sourceLineNo">024</span><a id="line.24">import javax.swing.JPanel;</a>
+<span class="sourceLineNo">025</span><a id="line.25">import javax.swing.SwingUtilities;</a>
+<span class="sourceLineNo">026</span><a id="line.26">import javax.swing.WindowConstants;</a>
+<span class="sourceLineNo">027</span><a id="line.27">import javax.imageio.ImageIO;</a>
+<span class="sourceLineNo">028</span><a id="line.28"></a>
+<span class="sourceLineNo">029</span><a id="line.29">import esei.si.alejandrogg.busquedaACO.algoritmos.RazonTerminacion;</a>
+<span class="sourceLineNo">030</span><a id="line.30"></a>
+<span class="sourceLineNo">031</span><a id="line.31">/**</a>
+<span class="sourceLineNo">032</span><a id="line.32"> * Define un contrato que deben de cumplir todos los objetos que puedan considerarse</a>
+<span class="sourceLineNo">033</span><a id="line.33"> * como la representación gráfica de un grafo de carreteras mediante una ventana de</a>
+<span class="sourceLineNo">034</span><a id="line.34"> * Swing.</a>
+<span class="sourceLineNo">035</span><a id="line.35"> * @see GrafoCarreteras</a>
+<span class="sourceLineNo">036</span><a id="line.36"> * @author Alejandro González García</a>
+<span class="sourceLineNo">037</span><a id="line.37"> */</a>
+<span class="sourceLineNo">038</span><a id="line.38">public final class VistaGrafo {</a>
+<span class="sourceLineNo">039</span><a id="line.39">    /**</a>
+<span class="sourceLineNo">040</span><a id="line.40">     * La separación en píxeles a dejar entre los bordes de la ventana.</a>
+<span class="sourceLineNo">041</span><a id="line.41">     */</a>
+<span class="sourceLineNo">042</span><a id="line.42">    private static final short PIXELES_MARGEN = 10;</a>
+<span class="sourceLineNo">043</span><a id="line.43">    /**</a>
+<span class="sourceLineNo">044</span><a id="line.44">     * La tipografía a usar para mostrar información adicional del sistema.</a>
+<span class="sourceLineNo">045</span><a id="line.45">     */</a>
+<span class="sourceLineNo">046</span><a id="line.46">    private static final Font tipografiaInformacion = new Font(Font.SANS_SERIF, Font.PLAIN, 13);</a>
+<span class="sourceLineNo">047</span><a id="line.47">    /**</a>
+<span class="sourceLineNo">048</span><a id="line.48">     * La imagen que representa el grafo sobre el que actúa el SMA.</a>
+<span class="sourceLineNo">049</span><a id="line.49">     */</a>
+<span class="sourceLineNo">050</span><a id="line.50">    private final BufferedImage imagenGrafo;</a>
+<span class="sourceLineNo">051</span><a id="line.51">    /**</a>
+<span class="sourceLineNo">052</span><a id="line.52">     * El grafo de carreteras del cual este objeto es su vista.</a>
+<span class="sourceLineNo">053</span><a id="line.53">     */</a>
+<span class="sourceLineNo">054</span><a id="line.54">    private final GrafoCarreteras grafoCarreteras;</a>
+<span class="sourceLineNo">055</span><a id="line.55">    /**</a>
+<span class="sourceLineNo">056</span><a id="line.56">     * El panel de Swing que contiene la ventana principal de la vista.</a>
+<span class="sourceLineNo">057</span><a id="line.57">     */</a>
+<span class="sourceLineNo">058</span><a id="line.58">    private volatile JFrame ventanaPpal;</a>
+<span class="sourceLineNo">059</span><a id="line.59">    /**</a>
+<span class="sourceLineNo">060</span><a id="line.60">     * Tarea asociada a la actualización de la vista.</a>
+<span class="sourceLineNo">061</span><a id="line.61">     */</a>
+<span class="sourceLineNo">062</span><a id="line.62">    private final Runnable tareaActualizacion = new TareaActualizacion();</a>
+<span class="sourceLineNo">063</span><a id="line.63"></a>
+<span class="sourceLineNo">064</span><a id="line.64">    /**</a>
+<span class="sourceLineNo">065</span><a id="line.65">     * Crea una nueva vista del grafo de carreteras sobre el que el sistema está trabajando.</a>
+<span class="sourceLineNo">066</span><a id="line.66">     * @param grafoCarreteras El grafo de carreteras del cual este objeto es su vista.</a>
+<span class="sourceLineNo">067</span><a id="line.67">     * @param nombreImagen El nombre del fichero de imagen que representa el grafo.</a>
+<span class="sourceLineNo">068</span><a id="line.68">     * @throws NullPointerException Si nombreImagen es nulo.</a>
+<span class="sourceLineNo">069</span><a id="line.69">     * @throws IllegalArgumentException Si el fichero de nombre nombreImagen no se puede leer como</a>
+<span class="sourceLineNo">070</span><a id="line.70">     * imagen, o el grafo de carreteras pasado como parámetro es nulo.</a>
+<span class="sourceLineNo">071</span><a id="line.71">     * @throws IllegalStateException Si el objeto queda parcialmente construido debido a</a>
+<span class="sourceLineNo">072</span><a id="line.72">     * una interrupción de los hilos que ejecuta o una excepción imprevista.</a>
+<span class="sourceLineNo">073</span><a id="line.73">     */</a>
+<span class="sourceLineNo">074</span><a id="line.74">    public VistaGrafo(final GrafoCarreteras grafoCarreteras, final String nombreImagen) {</a>
+<span class="sourceLineNo">075</span><a id="line.75">        if (grafoCarreteras == null) {</a>
+<span class="sourceLineNo">076</span><a id="line.76">            throw new IllegalArgumentException("El grafo de carreteras asociado a la vista no puede ser nulo.");</a>
+<span class="sourceLineNo">077</span><a id="line.77">        }</a>
+<span class="sourceLineNo">078</span><a id="line.78">        this.grafoCarreteras = grafoCarreteras;</a>
+<span class="sourceLineNo">079</span><a id="line.79"></a>
+<span class="sourceLineNo">080</span><a id="line.80">        // Cargar la imagen que representa el grafo a memoria, si es posible</a>
+<span class="sourceLineNo">081</span><a id="line.81">        this.imagenGrafo = cargarImagen("res" + File.separator + nombreImagen);</a>
+<span class="sourceLineNo">082</span><a id="line.82"></a>
+<span class="sourceLineNo">083</span><a id="line.83">        // Crear la GUI en la EDT de Swing, porque Swing no es thread-safe</a>
+<span class="sourceLineNo">084</span><a id="line.84">        try {</a>
+<span class="sourceLineNo">085</span><a id="line.85">            SwingUtilities.invokeAndWait(() -&gt; {</a>
+<span class="sourceLineNo">086</span><a id="line.86">                // Crear la etiqueta de texto que mostrará información adicional del sistema</a>
+<span class="sourceLineNo">087</span><a id="line.87">                final JLabel informacion = new JLabel(construirHTMLInformacion());</a>
+<span class="sourceLineNo">088</span><a id="line.88">                informacion.setFont(tipografiaInformacion);</a>
+<span class="sourceLineNo">089</span><a id="line.89"></a>
+<span class="sourceLineNo">090</span><a id="line.90">                // Crear el panel donde se dibujará la imagen, que incluye la lógica de dibujado necesaria</a>
+<span class="sourceLineNo">091</span><a id="line.91">                final JPanel panelImagen = new ImagenEstado();</a>
+<span class="sourceLineNo">092</span><a id="line.92">                panelImagen.setPreferredSize(new Dimension(imagenGrafo.getWidth() + PIXELES_MARGEN * 2, imagenGrafo.getHeight() + PIXELES_MARGEN * 2));</a>
+<span class="sourceLineNo">093</span><a id="line.93">                panelImagen.setAlignmentX(Component.CENTER_ALIGNMENT);</a>
+<span class="sourceLineNo">094</span><a id="line.94"></a>
+<span class="sourceLineNo">095</span><a id="line.95">                // TODO: botones para controlar el sistema</a>
+<span class="sourceLineNo">096</span><a id="line.96">                </a>
+<span class="sourceLineNo">097</span><a id="line.97">                // Crear la ventana principal y añadirle los componentes en el orden deseado</a>
+<span class="sourceLineNo">098</span><a id="line.98">                VistaGrafo.this.ventanaPpal = new JFrame("SMA ACO: " + nombreImagen.replaceFirst("\\..*$", "")) {</a>
+<span class="sourceLineNo">099</span><a id="line.99">                    @Override</a>
+<span class="sourceLineNo">100</span><a id="line.100">                    public void repaint() {</a>
+<span class="sourceLineNo">101</span><a id="line.101">                        super.repaint();</a>
+<span class="sourceLineNo">102</span><a id="line.102">                        // Actualizar componentes de la ventana cuando sea necesario redibujarla</a>
+<span class="sourceLineNo">103</span><a id="line.103">                        informacion.setText(construirHTMLInformacion());</a>
+<span class="sourceLineNo">104</span><a id="line.104">                    }</a>
+<span class="sourceLineNo">105</span><a id="line.105">                };</a>
+<span class="sourceLineNo">106</span><a id="line.106">                ventanaPpal.setLayout(new BoxLayout(ventanaPpal.getContentPane(), BoxLayout.Y_AXIS));</a>
+<span class="sourceLineNo">107</span><a id="line.107">                ventanaPpal.add(panelImagen);</a>
+<span class="sourceLineNo">108</span><a id="line.108">                ventanaPpal.add(informacion);</a>
+<span class="sourceLineNo">109</span><a id="line.109"></a>
+<span class="sourceLineNo">110</span><a id="line.110">                // Establecer propiedades de la ventana</a>
+<span class="sourceLineNo">111</span><a id="line.111">                try {</a>
+<span class="sourceLineNo">112</span><a id="line.112">                    ventanaPpal.setIconImage(cargarImagen("res" + File.separator + "Hormiga.png"));</a>
+<span class="sourceLineNo">113</span><a id="line.113">                } catch (IllegalArgumentException exc) {</a>
+<span class="sourceLineNo">114</span><a id="line.114">                    ventanaPpal.setIconImage(imagenGrafo);</a>
+<span class="sourceLineNo">115</span><a id="line.115">                }</a>
+<span class="sourceLineNo">116</span><a id="line.116">                ventanaPpal.getContentPane().setBackground(Color.WHITE);</a>
+<span class="sourceLineNo">117</span><a id="line.117">                ventanaPpal.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);</a>
+<span class="sourceLineNo">118</span><a id="line.118">                ventanaPpal.pack(); // Establecer tamaño automáticamente al más apropiado</a>
+<span class="sourceLineNo">119</span><a id="line.119">                ventanaPpal.setMinimumSize(ventanaPpal.getSize()); // No permitirle al usuario que baje de ese tamaño</a>
+<span class="sourceLineNo">120</span><a id="line.120"></a>
+<span class="sourceLineNo">121</span><a id="line.121">                // Finalmente, hacerla visible</a>
+<span class="sourceLineNo">122</span><a id="line.122">                ventanaPpal.setVisible(true);</a>
+<span class="sourceLineNo">123</span><a id="line.123">            });</a>
+<span class="sourceLineNo">124</span><a id="line.124">        } catch (InterruptedException | InvocationTargetException exc) {</a>
+<span class="sourceLineNo">125</span><a id="line.125">            throw new IllegalStateException(exc.getMessage(), exc);</a>
+<span class="sourceLineNo">126</span><a id="line.126">        }</a>
+<span class="sourceLineNo">127</span><a id="line.127">    }</a>
+<span class="sourceLineNo">128</span><a id="line.128"></a>
+<span class="sourceLineNo">129</span><a id="line.129">    /**</a>
+<span class="sourceLineNo">130</span><a id="line.130">     * Actualiza la información mostrada al usuario mediante esta vista.</a>
+<span class="sourceLineNo">131</span><a id="line.131">     * Debe de llamarse a este método cada vez que el sistema realice un paso o una</a>
+<span class="sourceLineNo">132</span><a id="line.132">     * acción que pueda tener efecto sobre su estado.</a>
+<span class="sourceLineNo">133</span><a id="line.133">     */</a>
+<span class="sourceLineNo">134</span><a id="line.134">    void actualizar() {</a>
+<span class="sourceLineNo">135</span><a id="line.135">        SwingUtilities.invokeLater(tareaActualizacion);</a>
+<span class="sourceLineNo">136</span><a id="line.136">    }</a>
+<span class="sourceLineNo">137</span><a id="line.137"></a>
+<span class="sourceLineNo">138</span><a id="line.138">    /**</a>
+<span class="sourceLineNo">139</span><a id="line.139">     * Lee una imagen desde un fichero en la memoria secundaria, transfiriéndola a la memoria</a>
+<span class="sourceLineNo">140</span><a id="line.140">     * principal.</a>
+<span class="sourceLineNo">141</span><a id="line.141">     * @param ruta La ruta, absoluta o relativa al directorio de trabajo actual, al fichero de imagen.</a>
+<span class="sourceLineNo">142</span><a id="line.142">     * @return La imagen cargada en memoria.</a>
+<span class="sourceLineNo">143</span><a id="line.143">     */</a>
+<span class="sourceLineNo">144</span><a id="line.144">    private static BufferedImage cargarImagen(final String ruta) {</a>
+<span class="sourceLineNo">145</span><a id="line.145">        BufferedImage toret;</a>
+<span class="sourceLineNo">146</span><a id="line.146">        final File f = new File(ruta);</a>
+<span class="sourceLineNo">147</span><a id="line.147"></a>
+<span class="sourceLineNo">148</span><a id="line.148">        // Ver si merece la pena intentar leer la imagen desde el fichero</a>
+<span class="sourceLineNo">149</span><a id="line.149">        if (!f.exists() || !f.isFile() || !f.canRead()) {</a>
+<span class="sourceLineNo">150</span><a id="line.150">            throw new IllegalArgumentException("Se ha intentado leer el fichero " + f.getAbsolutePath() + ", pero no existe, no es un fichero o la aplicación no tiene permiso para leerlo.");</a>
+<span class="sourceLineNo">151</span><a id="line.151">        }</a>
+<span class="sourceLineNo">152</span><a id="line.152"></a>
+<span class="sourceLineNo">153</span><a id="line.153">        // Cargar la imagen referenciada a memoria, si es posible</a>
+<span class="sourceLineNo">154</span><a id="line.154">        try {</a>
+<span class="sourceLineNo">155</span><a id="line.155">            toret = ImageIO.read(f);</a>
+<span class="sourceLineNo">156</span><a id="line.156">        } catch (IOException exc) {</a>
+<span class="sourceLineNo">157</span><a id="line.157">            throw new IllegalArgumentException("Excepción de E/S ocurrida durante la lectura de un fichero: " + exc.getMessage());</a>
+<span class="sourceLineNo">158</span><a id="line.158">        }</a>
+<span class="sourceLineNo">159</span><a id="line.159"></a>
+<span class="sourceLineNo">160</span><a id="line.160">        return toret;</a>
+<span class="sourceLineNo">161</span><a id="line.161">    }</a>
+<span class="sourceLineNo">162</span><a id="line.162"></a>
+<span class="sourceLineNo">163</span><a id="line.163">    /**</a>
+<span class="sourceLineNo">164</span><a id="line.164">     * Genera las etiquetas HTML a establecer como texto de la etiqueta de información extendida</a>
+<span class="sourceLineNo">165</span><a id="line.165">     * del sistema en la vista.</a>
+<span class="sourceLineNo">166</span><a id="line.166">     * @return El devandicho HTML.</a>
+<span class="sourceLineNo">167</span><a id="line.167">     */</a>
+<span class="sourceLineNo">168</span><a id="line.168">    private static String construirHTMLInformacion() {</a>
+<span class="sourceLineNo">169</span><a id="line.169">        final Mundo m = Mundo.get();</a>
+<span class="sourceLineNo">170</span><a id="line.170">        final Algoritmo alg = m.getAlgoritmo();</a>
+<span class="sourceLineNo">171</span><a id="line.171"></a>
+<span class="sourceLineNo">172</span><a id="line.172">        final StringBuilder sb = new StringBuilder("&lt;html&gt;&lt;body style=\"margin: auto; padding: ");</a>
+<span class="sourceLineNo">173</span><a id="line.173">        sb.append(PIXELES_MARGEN);</a>
+<span class="sourceLineNo">174</span><a id="line.174">        sb.append("px;\"&gt;");</a>
+<span class="sourceLineNo">175</span><a id="line.175"></a>
+<span class="sourceLineNo">176</span><a id="line.176">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;Hormigas totales&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">177</span><a id="line.177">        sb.append(m.getCoordinadorHormigas().esperandoLlegadaHormigas() ? "Esperando por hormigas..." : m.getNHormigas());</a>
+<span class="sourceLineNo">178</span><a id="line.178">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">179</span><a id="line.179"></a>
+<span class="sourceLineNo">180</span><a id="line.180">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;Localidad de inicio&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">181</span><a id="line.181">        sb.append(m.getLocalidadInicio().getNombre());</a>
+<span class="sourceLineNo">182</span><a id="line.182">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">183</span><a id="line.183"></a>
+<span class="sourceLineNo">184</span><a id="line.184">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;Localidad destino&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">185</span><a id="line.185">        sb.append(m.getLocalidadDestino().getNombre());</a>
+<span class="sourceLineNo">186</span><a id="line.186">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">187</span><a id="line.187"></a>
+<span class="sourceLineNo">188</span><a id="line.188">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;Algoritmo&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">189</span><a id="line.189">        sb.append(alg.getNombre());</a>
+<span class="sourceLineNo">190</span><a id="line.190">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">191</span><a id="line.191"></a>
+<span class="sourceLineNo">192</span><a id="line.192">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;\u03B1&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">193</span><a id="line.193">        sb.append(m.getAlfa());</a>
+<span class="sourceLineNo">194</span><a id="line.194">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">195</span><a id="line.195"></a>
+<span class="sourceLineNo">196</span><a id="line.196">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;\u03B2&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">197</span><a id="line.197">        sb.append(m.getBeta());</a>
+<span class="sourceLineNo">198</span><a id="line.198">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">199</span><a id="line.199"></a>
+<span class="sourceLineNo">200</span><a id="line.200">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;Ciclo&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">201</span><a id="line.201">        sb.append(alg.getCiclo() + "/" + alg.getCiclosMaximos());</a>
+<span class="sourceLineNo">202</span><a id="line.202">        final RazonTerminacion razonTerminacion = alg.razonTerminacion();</a>
+<span class="sourceLineNo">203</span><a id="line.203">        if (razonTerminacion != null) {</a>
+<span class="sourceLineNo">204</span><a id="line.204">            sb.append(" (terminado: ");</a>
+<span class="sourceLineNo">205</span><a id="line.205">            sb.append(razonTerminacion);</a>
+<span class="sourceLineNo">206</span><a id="line.206">            sb.append(")");</a>
+<span class="sourceLineNo">207</span><a id="line.207">        }</a>
+<span class="sourceLineNo">208</span><a id="line.208">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">209</span><a id="line.209"></a>
+<span class="sourceLineNo">210</span><a id="line.210">        sb.append("&lt;p&gt;&lt;span style=\"font-weight: bold;\"&gt;Mejor camino actual&lt;/span&gt;: ");</a>
+<span class="sourceLineNo">211</span><a id="line.211">        try {</a>
+<span class="sourceLineNo">212</span><a id="line.212">            final Camino camino = alg.getMejorCamino();</a>
+<span class="sourceLineNo">213</span><a id="line.213">            sb.append(camino);</a>
+<span class="sourceLineNo">214</span><a id="line.214">            sb.append(" (");</a>
+<span class="sourceLineNo">215</span><a id="line.215">            sb.append(camino.distanciaTotal());</a>
+<span class="sourceLineNo">216</span><a id="line.216">            sb.append(" km)");</a>
+<span class="sourceLineNo">217</span><a id="line.217">        } catch (NoSuchElementException exc) {</a>
+<span class="sourceLineNo">218</span><a id="line.218">            sb.append("\u2014");</a>
+<span class="sourceLineNo">219</span><a id="line.219">        }</a>
+<span class="sourceLineNo">220</span><a id="line.220">        sb.append("&lt;/p&gt;");</a>
+<span class="sourceLineNo">221</span><a id="line.221"></a>
+<span class="sourceLineNo">222</span><a id="line.222">        sb.append("&lt;div&gt;&lt;/div&gt;");</a>
+<span class="sourceLineNo">223</span><a id="line.223"></a>
+<span class="sourceLineNo">224</span><a id="line.224">        sb.append("&lt;p&gt;Las etiquetas de texto con fondo marr\u00F3n representan el n\u00FAmero de hormigas actual para la localidad m\u00E1s cercana.&lt;/p&gt;");</a>
+<span class="sourceLineNo">225</span><a id="line.225">        sb.append("&lt;p&gt;Las etiquetas de texto con fondo rojo son la cantidad de feromona depositada en la carretera asociada.&lt;/p&gt;");</a>
+<span class="sourceLineNo">226</span><a id="line.226"></a>
+<span class="sourceLineNo">227</span><a id="line.227">        sb.append("&lt;/body&gt;&lt;/html&gt;");</a>
+<span class="sourceLineNo">228</span><a id="line.228"></a>
+<span class="sourceLineNo">229</span><a id="line.229">        return sb.toString();</a>
+<span class="sourceLineNo">230</span><a id="line.230">    }</a>
+<span class="sourceLineNo">231</span><a id="line.231"></a>
+<span class="sourceLineNo">232</span><a id="line.232">    /**</a>
+<span class="sourceLineNo">233</span><a id="line.233">     * Tarea asociada a la actualización de la vista, a ejecutar en el hilo de</a>
+<span class="sourceLineNo">234</span><a id="line.234">     * atención de eventos de AWT.</a>
+<span class="sourceLineNo">235</span><a id="line.235">     * @author Alejandro González García</a>
+<span class="sourceLineNo">236</span><a id="line.236">     */</a>
+<span class="sourceLineNo">237</span><a id="line.237">    private final class TareaActualizacion implements Runnable {</a>
+<span class="sourceLineNo">238</span><a id="line.238">        @Override</a>
+<span class="sourceLineNo">239</span><a id="line.239">        public void run() {</a>
+<span class="sourceLineNo">240</span><a id="line.240">            ventanaPpal.repaint();</a>
+<span class="sourceLineNo">241</span><a id="line.241">        }</a>
+<span class="sourceLineNo">242</span><a id="line.242">    }</a>
+<span class="sourceLineNo">243</span><a id="line.243"></a>
+<span class="sourceLineNo">244</span><a id="line.244">    /**</a>
+<span class="sourceLineNo">245</span><a id="line.245">     * Representa un JPanel, que al ser representado muestra ciertas propiedades del estado</a>
+<span class="sourceLineNo">246</span><a id="line.246">     * actual del sistema en una imagen, dentro de una ventana.</a>
+<span class="sourceLineNo">247</span><a id="line.247">     * @author Alejandro González García</a>
+<span class="sourceLineNo">248</span><a id="line.248">     */</a>
+<span class="sourceLineNo">249</span><a id="line.249">    private final class ImagenEstado extends JPanel {</a>
+<span class="sourceLineNo">250</span><a id="line.250">        /**</a>
+<span class="sourceLineNo">251</span><a id="line.251">         * La tipografía a usar para mostrar el número de hormigas que hay en una localidad.</a>
+<span class="sourceLineNo">252</span><a id="line.252">         */</a>
+<span class="sourceLineNo">253</span><a id="line.253">        private final Font tipografiaNumEtiqueta = new Font(Font.SANS_SERIF, Font.PLAIN, 10);</a>
+<span class="sourceLineNo">254</span><a id="line.254">        /**</a>
+<span class="sourceLineNo">255</span><a id="line.255">         * El color de fondo a usar para el rectángulo del texto de número de hormigas.</a>
+<span class="sourceLineNo">256</span><a id="line.256">         */</a>
+<span class="sourceLineNo">257</span><a id="line.257">        private final Color colorFondoHormigas = new Color(166, 97, 58);</a>
+<span class="sourceLineNo">258</span><a id="line.258">        /**</a>
+<span class="sourceLineNo">259</span><a id="line.259">         * El color a usar para el texto de número de hormigas.</a>
+<span class="sourceLineNo">260</span><a id="line.260">         */</a>
+<span class="sourceLineNo">261</span><a id="line.261">        private final Color colorHormigas = new Color(255, 244, 241);</a>
+<span class="sourceLineNo">262</span><a id="line.262">        /**</a>
+<span class="sourceLineNo">263</span><a id="line.263">         * El color de fondo a usar para el rectángulo del texto de cantidad de feromona.</a>
+<span class="sourceLineNo">264</span><a id="line.264">         */</a>
+<span class="sourceLineNo">265</span><a id="line.265">        private final Color colorFondoFeromonas = Color.RED;</a>
+<span class="sourceLineNo">266</span><a id="line.266">        /**</a>
+<span class="sourceLineNo">267</span><a id="line.267">         * El color a usar para el texto de cantidad de feromona.</a>
+<span class="sourceLineNo">268</span><a id="line.268">         */</a>
+<span class="sourceLineNo">269</span><a id="line.269">        private final Color colorFeromonas = Color.WHITE;</a>
+<span class="sourceLineNo">270</span><a id="line.270"></a>
+<span class="sourceLineNo">271</span><a id="line.271">        @Override</a>
+<span class="sourceLineNo">272</span><a id="line.272">        protected void paintComponent(Graphics g) {</a>
+<span class="sourceLineNo">273</span><a id="line.273">            Graphics2D g2d;</a>
+<span class="sourceLineNo">274</span><a id="line.274">            FontRenderContext frc;</a>
+<span class="sourceLineNo">275</span><a id="line.275">            final int xInicio = (getWidth() - imagenGrafo.getWidth()) / 2; // Para tener en cuenta el posible cambio de tamaño del componente</a>
+<span class="sourceLineNo">276</span><a id="line.276"></a>
+<span class="sourceLineNo">277</span><a id="line.277">            // Convertir objeto Graphics a su subclase Graphics2D, pues tiene más métodos,</a>
+<span class="sourceLineNo">278</span><a id="line.278">            // que usaremos</a>
+<span class="sourceLineNo">279</span><a id="line.279">            if (g instanceof Graphics2D) {</a>
+<span class="sourceLineNo">280</span><a id="line.280">                g2d = (Graphics2D) g;</a>
+<span class="sourceLineNo">281</span><a id="line.281">                frc = g2d.getFontRenderContext();</a>
+<span class="sourceLineNo">282</span><a id="line.282">            } else {</a>
+<span class="sourceLineNo">283</span><a id="line.283">                throw new AssertionError("El objeto Graphics recibido no es una instancia de Graphics2D.");</a>
+<span class="sourceLineNo">284</span><a id="line.284">            }</a>
+<span class="sourceLineNo">285</span><a id="line.285"></a>
+<span class="sourceLineNo">286</span><a id="line.286">            // Primero, dibujar la imagen de fondo, que representa el grafo</a>
+<span class="sourceLineNo">287</span><a id="line.287">            g2d.drawImage(imagenGrafo, xInicio, PIXELES_MARGEN, Color.WHITE, null);</a>
+<span class="sourceLineNo">288</span><a id="line.288"></a>
+<span class="sourceLineNo">289</span><a id="line.289">            // Indicar cuántas hormigas hay actualmente en cada nodo</a>
+<span class="sourceLineNo">290</span><a id="line.290">            for (final Localidad l : grafoCarreteras.localidades()) {</a>
+<span class="sourceLineNo">291</span><a id="line.291">                dibujarEtiquetaTexto(</a>
+<span class="sourceLineNo">292</span><a id="line.292">                    g2d, tipografiaNumEtiqueta, colorFondoHormigas, colorHormigas,</a>
+<span class="sourceLineNo">293</span><a id="line.293">                    frc, Integer.toString(l.numeroHormigas()), l.getX(), l.getY(),</a>
+<span class="sourceLineNo">294</span><a id="line.294">                    xInicio, PIXELES_MARGEN</a>
+<span class="sourceLineNo">295</span><a id="line.295">                );</a>
+<span class="sourceLineNo">296</span><a id="line.296">            }</a>
+<span class="sourceLineNo">297</span><a id="line.297"></a>
+<span class="sourceLineNo">298</span><a id="line.298">            // Indicar la cantidad de feromona depositada en cada carretera</a>
+<span class="sourceLineNo">299</span><a id="line.299">            for (final Carretera c : grafoCarreteras.carreteras()) {</a>
+<span class="sourceLineNo">300</span><a id="line.300">                dibujarEtiquetaTexto(</a>
+<span class="sourceLineNo">301</span><a id="line.301">                    g2d, tipografiaNumEtiqueta, colorFondoFeromonas, colorFeromonas,</a>
+<span class="sourceLineNo">302</span><a id="line.302">                    frc, String.format("%+,6.4f", c.getNivelFeromona()), c.getInfoX(), c.getInfoY(),</a>
+<span class="sourceLineNo">303</span><a id="line.303">                    xInicio, PIXELES_MARGEN</a>
+<span class="sourceLineNo">304</span><a id="line.304">                );</a>
+<span class="sourceLineNo">305</span><a id="line.305">            }</a>
+<span class="sourceLineNo">306</span><a id="line.306">        }</a>
+<span class="sourceLineNo">307</span><a id="line.307"></a>
+<span class="sourceLineNo">308</span><a id="line.308">        /**</a>
+<span class="sourceLineNo">309</span><a id="line.309">         * Dibuja una etiqueta de texto en el JPanel, con las propiedades especificadas.</a>
+<span class="sourceLineNo">310</span><a id="line.310">         * @param g El objeto que permite realizar operaciones de rasterizado en el JPanel.</a>
+<span class="sourceLineNo">311</span><a id="line.311">         * @param tipografia La tipografía a usar para mostrar el texto.</a>
+<span class="sourceLineNo">312</span><a id="line.312">         * @param fondo El color de fondo de la etiqueta de texto.</a>
+<span class="sourceLineNo">313</span><a id="line.313">         * @param colorTexto El color del texto de la etiqueta.</a>
+<span class="sourceLineNo">314</span><a id="line.314">         * @param frc El contexto de renderizado de fuente del objeto de gráficos.</a>
+<span class="sourceLineNo">315</span><a id="line.315">         * @param texto El texto a mostrar en la etiqueta.</a>
+<span class="sourceLineNo">316</span><a id="line.316">         * @param x La coordenada horizontal de inicio de la línea base del texto a dibujar.</a>
+<span class="sourceLineNo">317</span><a id="line.317">         * @param y La coordenada vertical de inicio de la línea base del texto a dibujar.</a>
+<span class="sourceLineNo">318</span><a id="line.318">         * @param offX La distancia en X desde el origen de coordenadas del componente a la esquina superior izquierda</a>
+<span class="sourceLineNo">319</span><a id="line.319">         * de la imagen.</a>
+<span class="sourceLineNo">320</span><a id="line.320">         * @param offY La distancia en Y desde el origen de coordenadas del componente a la esquina superior izquierda</a>
+<span class="sourceLineNo">321</span><a id="line.321">         * de la imagen.</a>
+<span class="sourceLineNo">322</span><a id="line.322">         */</a>
+<span class="sourceLineNo">323</span><a id="line.323">        private void dibujarEtiquetaTexto(final Graphics2D g, final Font tipografia, final Color fondo, final Color colorTexto, final FontRenderContext frc, final String texto, final int x, final int y, final int offX, final int offY) {</a>
+<span class="sourceLineNo">324</span><a id="line.324">            final TextLayout tl = new TextLayout(texto, tipografia, frc);</a>
+<span class="sourceLineNo">325</span><a id="line.325"></a>
+<span class="sourceLineNo">326</span><a id="line.326">            // Obtener un rectángulo, cuya esquina superior izquierda está</a>
+<span class="sourceLineNo">327</span><a id="line.327">            // en el origen, que contiene totalmente el texto a mostrar</a>
+<span class="sourceLineNo">328</span><a id="line.328">            final Rectangle2D rectTexto = tl.getBounds();</a>
+<span class="sourceLineNo">329</span><a id="line.329">            // Transformar las coordenadas relativas al origen a relativas</a>
+<span class="sourceLineNo">330</span><a id="line.330">            // al punto donde debemos de dibujar texto para esta localidad.</a>
+<span class="sourceLineNo">331</span><a id="line.331">            // Aumentar el tamaño del rectángulo en 4 píxeles y desplazarlo 2</a>
+<span class="sourceLineNo">332</span><a id="line.332">            // hacia la izquierda y hacia arriba para añadirle borde, y que</a>
+<span class="sourceLineNo">333</span><a id="line.333">            // quede bonito</a>
+<span class="sourceLineNo">334</span><a id="line.334">            rectTexto.setRect(rectTexto.getX() + x + offX - 2,</a>
+<span class="sourceLineNo">335</span><a id="line.335">                rectTexto.getY() + y + offY - 2,</a>
+<span class="sourceLineNo">336</span><a id="line.336">                rectTexto.getWidth() + 4,</a>
+<span class="sourceLineNo">337</span><a id="line.337">                rectTexto.getHeight() + 4</a>
+<span class="sourceLineNo">338</span><a id="line.338">            );</a>
+<span class="sourceLineNo">339</span><a id="line.339">            g.setColor(fondo);</a>
+<span class="sourceLineNo">340</span><a id="line.340">            g.fill(rectTexto);</a>
+<span class="sourceLineNo">341</span><a id="line.341"></a>
+<span class="sourceLineNo">342</span><a id="line.342">            g.setColor(colorTexto);</a>
+<span class="sourceLineNo">343</span><a id="line.343">            tl.draw(g, (float) (x + offX), (float) (y + offY));</a>
+<span class="sourceLineNo">344</span><a id="line.344">        }</a>
+<span class="sourceLineNo">345</span><a id="line.345">    }</a>
+<span class="sourceLineNo">346</span><a id="line.346">}</a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</main>
+</body>
+</html>

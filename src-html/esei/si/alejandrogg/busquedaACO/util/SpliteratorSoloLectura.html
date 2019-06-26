@@ -1,0 +1,138 @@
+<!DOCTYPE HTML>
+<html lang="es">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<main role="main">
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a id="line.1">// Entorno para el proyecto BusquedaACO.mas2j</a>
+<span class="sourceLineNo">002</span><a id="line.2"></a>
+<span class="sourceLineNo">003</span><a id="line.3">package esei.si.alejandrogg.busquedaACO.util;</a>
+<span class="sourceLineNo">004</span><a id="line.4"></a>
+<span class="sourceLineNo">005</span><a id="line.5">import java.util.Spliterator;</a>
+<span class="sourceLineNo">006</span><a id="line.6">import java.util.function.Consumer;</a>
+<span class="sourceLineNo">007</span><a id="line.7"></a>
+<span class="sourceLineNo">008</span><a id="line.8">/**</a>
+<span class="sourceLineNo">009</span><a id="line.9"> * Implementa un {@link Spliterator} inmutable y de tamaño definido sobre otro Spliterator,</a>
+<span class="sourceLineNo">010</span><a id="line.10"> * del que hereda otras características que tenga. Es, por tanto, un adaptador.</a>
+<span class="sourceLineNo">011</span><a id="line.11"> * @author Alejandro González García</a>
+<span class="sourceLineNo">012</span><a id="line.12"> */</a>
+<span class="sourceLineNo">013</span><a id="line.13">public final class SpliteratorSoloLectura&lt;E&gt; implements Spliterator&lt;E&gt; {</a>
+<span class="sourceLineNo">014</span><a id="line.14">    /**</a>
+<span class="sourceLineNo">015</span><a id="line.15">     * Las características que este Spliterator aporta al Spliterator usado internamente.</a>
+<span class="sourceLineNo">016</span><a id="line.16">     */</a>
+<span class="sourceLineNo">017</span><a id="line.17">    private static final int CARACTERISTICAS = Spliterator.IMMUTABLE | Spliterator.SIZED | Spliterator.SUBSIZED;</a>
+<span class="sourceLineNo">018</span><a id="line.18"></a>
+<span class="sourceLineNo">019</span><a id="line.19">    /**</a>
+<span class="sourceLineNo">020</span><a id="line.20">     * El Spliterator del que este depende para ejecutar la lógica de implementación.</a>
+<span class="sourceLineNo">021</span><a id="line.21">     */</a>
+<span class="sourceLineNo">022</span><a id="line.22">    private final Spliterator&lt;E&gt; spliteratorInterno;</a>
+<span class="sourceLineNo">023</span><a id="line.23"></a>
+<span class="sourceLineNo">024</span><a id="line.24">    /**</a>
+<span class="sourceLineNo">025</span><a id="line.25">     * Crea una nueva instancia de esta clase, cuyo Spliterator interno es el especificado.</a>
+<span class="sourceLineNo">026</span><a id="line.26">     * @param spliteratorInterno El Spliterator interno deseado.</a>
+<span class="sourceLineNo">027</span><a id="line.27">     * @throws IllegalArgumentException Si el Spliterator interno es nulo.</a>
+<span class="sourceLineNo">028</span><a id="line.28">     */</a>
+<span class="sourceLineNo">029</span><a id="line.29">    public SpliteratorSoloLectura(final Spliterator&lt;E&gt; spliteratorInterno) {</a>
+<span class="sourceLineNo">030</span><a id="line.30">        if (spliteratorInterno == null) {</a>
+<span class="sourceLineNo">031</span><a id="line.31">            throw new IllegalArgumentException("No se puede crear un Spliterator de solo lectura usando un Spliterator interno nulo.");</a>
+<span class="sourceLineNo">032</span><a id="line.32">        }</a>
+<span class="sourceLineNo">033</span><a id="line.33">        this.spliteratorInterno = spliteratorInterno;</a>
+<span class="sourceLineNo">034</span><a id="line.34">    }</a>
+<span class="sourceLineNo">035</span><a id="line.35"></a>
+<span class="sourceLineNo">036</span><a id="line.36">    @Override</a>
+<span class="sourceLineNo">037</span><a id="line.37">    public boolean tryAdvance(final Consumer&lt;? super E&gt; accion) {</a>
+<span class="sourceLineNo">038</span><a id="line.38">        return spliteratorInterno.tryAdvance(accion);</a>
+<span class="sourceLineNo">039</span><a id="line.39">    }</a>
+<span class="sourceLineNo">040</span><a id="line.40"></a>
+<span class="sourceLineNo">041</span><a id="line.41">    @Override</a>
+<span class="sourceLineNo">042</span><a id="line.42">    public void forEachRemaining(final Consumer&lt;? super E&gt; accion) {</a>
+<span class="sourceLineNo">043</span><a id="line.43">        spliteratorInterno.forEachRemaining(accion);</a>
+<span class="sourceLineNo">044</span><a id="line.44">    }</a>
+<span class="sourceLineNo">045</span><a id="line.45"></a>
+<span class="sourceLineNo">046</span><a id="line.46">    @Override</a>
+<span class="sourceLineNo">047</span><a id="line.47">    public Spliterator&lt;E&gt; trySplit() {</a>
+<span class="sourceLineNo">048</span><a id="line.48">        try {</a>
+<span class="sourceLineNo">049</span><a id="line.49">            return new SpliteratorSoloLectura&lt;&gt;(spliteratorInterno.trySplit());</a>
+<span class="sourceLineNo">050</span><a id="line.50">        } catch (IllegalArgumentException exc) {</a>
+<span class="sourceLineNo">051</span><a id="line.51">            return null;</a>
+<span class="sourceLineNo">052</span><a id="line.52">        }</a>
+<span class="sourceLineNo">053</span><a id="line.53">    }</a>
+<span class="sourceLineNo">054</span><a id="line.54"></a>
+<span class="sourceLineNo">055</span><a id="line.55">    @Override</a>
+<span class="sourceLineNo">056</span><a id="line.56">    public long estimateSize() {</a>
+<span class="sourceLineNo">057</span><a id="line.57">        return spliteratorInterno.estimateSize();</a>
+<span class="sourceLineNo">058</span><a id="line.58">    }</a>
+<span class="sourceLineNo">059</span><a id="line.59"></a>
+<span class="sourceLineNo">060</span><a id="line.60">    @Override</a>
+<span class="sourceLineNo">061</span><a id="line.61">    public int characteristics() {</a>
+<span class="sourceLineNo">062</span><a id="line.62">        return (spliteratorInterno.characteristics() | CARACTERISTICAS) &amp; ~Spliterator.CONCURRENT;</a>
+<span class="sourceLineNo">063</span><a id="line.63">    }</a>
+<span class="sourceLineNo">064</span><a id="line.64">}</a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</main>
+</body>
+</html>
